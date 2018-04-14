@@ -4,13 +4,27 @@ section .text
     global _start
 
 _start:
-    mov rax, 0x0245
+    mov al, 245
+    call Bin2BCD                ; this is the code we reviewed in class which is reverse of what we do in the following
     call BCD2Bin
 
 exit:
     mov rax, 1
-    mov rbx, 1
+    mov rbx, 0
     int 80h
+
+Bin2BCD:
+    mov bl, 10
+    mov ah, 0
+    div bl
+    mov bh, ah
+    xor ah, ah
+    div bl
+    shl ah, 4
+    or bh, ah
+    mov ah, al
+    mov al, bh
+    ret
 
 BCD2Bin:
     mov cl, ah
