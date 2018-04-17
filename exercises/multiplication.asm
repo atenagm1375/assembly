@@ -4,8 +4,8 @@ section .text
     global _start
 
 _start:
-    mov al, 20
-    mov bl, 19
+    mov eax, -2000
+    mov ebx, 19
     call multiplication
 
 exit:
@@ -14,18 +14,36 @@ exit:
     int 80h
 
 multiplication:
-    xor cx, cx
-    cmp al, 0
-    cmove ax, cx
-    jmp end
-    cmp bl, 0
-    cmove ax, cx
-    jmp end
-    mov cl, bl
-    movzx dx, al
-    dec cl
+    xor r8, r8
+    xor rcx, rcx
+    cmp eax, 0
+    cmove eax, ecx
+    je end
+    jl negative1
+    check2:
+    cmp ebx, 0
+    cmove eax, ecx
+    je end
+    jl negative2
+    continue:
+    mov ecx, ebx
+    mov rdx, rax
+    dec ecx
     while:
-        add ax, dx
+        add rax, rdx
         loop while
+    cmp r8, 1
+    jne end
+    neg rax
     end:
     ret
+
+    negative1:
+    neg eax
+    inc r8
+    jmp check2
+
+    negative2:
+    neg ebx
+    inc r8
+    jmp continue
