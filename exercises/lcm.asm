@@ -1,5 +1,14 @@
 ; exercise No.1, 08-Assembly3.pdf
 ; write a program that computes the LCM of 2 numbers{(RAX, RBX)->RDX}.
+; run commands:
+; nasm -f elf64 lcm.asm
+; ld -o ./lcm -e _start ./lcm.o
+; gdb ./lcm
+; b exit
+; r
+; i r rdx
+; c
+; q
 section .data
     a dq 54
     b dq 90

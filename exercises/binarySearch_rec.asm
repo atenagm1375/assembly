@@ -1,5 +1,14 @@
 ; exercise No.2, 11-assembly5.pdf
 ; implement binary search algorithm using recursive approach.
+; run commands:
+; nasm -f elf32 binarySearch_rec.asm
+; ld -m elf_i386 binarySearch_rec.o -o binarySearch_rec
+; gdb ./binarySearch_rec
+; b exit
+; r
+; i r eax //this is the index of array were the key is found(-1 if not found)
+; c
+; q
 section .data
     array dd 1, 4, 6, 7, 12, 16, 21, 34, 49, 50, 53, 54, 55, 60, 99, 100
     len equ ($-array)/4

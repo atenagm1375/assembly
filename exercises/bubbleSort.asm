@@ -1,5 +1,16 @@
 ; exercise No.4, 08-Assembly.pdf
 ; write a program that sorts an array using bubble sort algorithm.
+; run commands:
+; nasm -f elf64 bubbleSort.asm
+; ld -o ./bubbleSort -e _start ./bubbleSort.o
+; gdb ./bubbleSort
+; b test_while
+; b exit
+; r
+; i r al
+; c
+; //repeat the above 2 until you have checked the whole array.
+; q
 section .data
     arr db 4, 2, 7, 8, 1, 6, 9, 3
     len equ $ - arr

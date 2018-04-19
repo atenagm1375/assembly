@@ -1,5 +1,14 @@
 ; exercise No.3, 10-assembly4.pdf
-; write a program that does the multiplication using addition{al*bl=ah:al}
+; write a program that does the multiplication using addition{eax*ebx=rax}
+; run commands:
+; nasm -f elf64 multiplication.asm
+; ld -o ./multiplication -e _start ./multiplication.o
+; gdb ./multiplication
+; b exit
+; r
+; i r rax
+; c
+; q
 section .text
     global _start
 

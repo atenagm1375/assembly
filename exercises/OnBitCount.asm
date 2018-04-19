@@ -1,5 +1,14 @@
 ; exercise No.2, 10-assembly4.pdf
 ; write a program that counts number of bits valued 1 between esi and edi.
+; run commands:
+; nasm -f elf64 OnBitCount.asm
+; ld -o ./OnBitCount -e _start ./OnBitCount.o
+; gdb ./OnBitCount
+; b exit
+; r
+; i r rcx
+; c
+; q
 section .data
     a db 32, 25, 4, 8, 3, 9, 6, 0, 0, 1, 5, 7
     len equ $-a

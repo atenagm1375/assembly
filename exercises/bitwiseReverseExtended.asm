@@ -1,5 +1,14 @@
 ; exercise page 26, 10-assembly4.pdf
 ; write a program to do bitwise-reverse for 64-bit data{rax->rdx}.
+; run commands:
+; nasm -f elf64 bitwiseReverseExtended.asm
+; ld -o ./bitwiseReverseExtended -e _start ./bitwiseReverseExtended.o
+; gdb ./bitwiseReverseExtended
+; b exit
+; r
+; i r rdx
+; c
+; q
 section .text
     global _start
 

@@ -1,5 +1,14 @@
 ; exercise No.1, 10-assembly4.pdf
 ; write a program that counts those bits of rax that are 1.
+; run commands:
+; nasm -f elf64 countOnes.asm
+; ld -o ./countOnes -e _start ./countOnes.o
+; gdb ./countOnes
+; b exit
+; r
+; i r cx
+; c
+; q
 section .text
     global _start
 

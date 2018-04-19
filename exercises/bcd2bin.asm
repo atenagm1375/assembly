@@ -1,5 +1,14 @@
 ; exercise on page 33, 08-Assembly3.pdf
 ; write a program that converts bcd number into binary{AX->AL}.
+; run commands:
+; nasm -f elf64 bcd2bin.asm
+; ld -o ./bcd2bin -e _start ./bcd2bin.o
+; gdb ./bcd2bin
+; b exit
+; r
+; i r ax
+; c
+; q
 section .text
     global _start
 

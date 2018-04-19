@@ -1,5 +1,14 @@
 ;exercise No.3, 08-Assembly3.pdf
 ; write a program that says whether the number in rax is prime ro not.
+; run commands:
+; nasm -f elf64 isPrime.asm
+; ld -o ./isPrime -e _start ./isPrime.o
+; gdb ./isPrime
+; b exit
+; r
+; i r r9
+; c
+; q
 section .text
     global _start
 

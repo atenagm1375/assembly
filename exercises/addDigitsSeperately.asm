@@ -1,5 +1,15 @@
 ; exercise No.7, 08-Assembly3.pdf
 ; write a program that computes sum of even and odd digits seperately{AX->(BX, DX)}.
+; run commands:
+; nasm -f elf64 addDigitsSeperately.asm
+; ld -o ./addDigitsSeperately -e _start ./addDigitsSeperately.o
+; gdb ./addDigitsSeperately
+; b exit
+; r
+; i r bx
+; i r dx
+; c
+; q
 section .text
     global _start
 

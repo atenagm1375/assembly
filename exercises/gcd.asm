@@ -1,5 +1,14 @@
 ; exercise No.5, 08-Assembly3.pdf
 ; write a program that computes GCD of two numbers{(AX, BX)->DX}.
+; run commands:
+; nasm -f elf64 gcd.asm
+; ld -o ./gcd -e _start ./gcd.o
+; gdb ./gcd
+; b exit
+; r
+; i r dx
+; c
+; q
 section .data
     a dw 54
     b dw 90

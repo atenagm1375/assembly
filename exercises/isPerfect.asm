@@ -1,5 +1,14 @@
 ; exercise No.2, 08-Assembly3.pdf
 ; write a program that says whether the number in rax is perfect or not.
+; run commands:
+; nasm -f elf64 isPerfect.asm
+; ld -o ./isPerfect -e _start ./isPerfect.o
+; gdb ./isPerfect
+; b exit
+; r
+; i r r9
+; c
+; q
 section .data
     a dq 8128
 

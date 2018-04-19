@@ -1,5 +1,14 @@
 ; exercise No.6, 08-Assembly.pdf
 ; write a program that computes some of all digits of a number{AX->DX}.
+; run commands:
+; nasm -f elf64 addAllDigits.asm
+; ld -o ./addAllDigits -e _start ./addAllDigits.o
+; gdb ./addAllDigits
+; b exit
+; r
+; i r dx
+; c
+; q
 section .text
     global _start
 
