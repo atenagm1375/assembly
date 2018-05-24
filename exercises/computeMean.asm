@@ -6,7 +6,7 @@
 ; gdb ./computeMean
 ; b exit
 ; r
-; i r rax
+; i r st0
 ; c
 ; q
 section .data
@@ -51,7 +51,6 @@ COMPUTEMEAN:
     mov rcx, len
     mov [a], rcx
     fild qword[a]
-    fst ST1
     fldz
     add_loop:
         dec rcx
