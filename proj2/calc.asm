@@ -11,7 +11,7 @@ section .data
     div_len equ $-divide_by_zero
     result dq 0
     max_num_size equ 19                 ; max digits of a number
-    max_inp_size equ 1000                 ; max size of input string
+    max_inp_size equ 100                ; max size of input string
 
 section .bss
     inp resb max_inp_size               ; keeps the input
@@ -29,7 +29,29 @@ _start:
     mov rdx, msg_len
     syscall
 
+    start_while:
+    call readUserInput
+    cmp [rsi], byte 'x'
+    je exit
+    jmp start_while
+
 exit:
     mov rax, 1
     mov rbx, 0
     int 80h
+
+readUserInput:
+    mov rcx, max_inp_size
+    mov rsi, inp
+    xor bl, bl
+    clear_while:                        ; clear input buffer before reading a new input
+        mov [rsi], bl
+        inc rsi
+        loop clear_while
+    ; sys_read: %rax: 0, %rdi: unsigned int fd, %rsi: char *buf, %rdx: size_t count
+    mov rax, 0
+    mov rdi, 0
+    mov rsi, inp
+    mov rdx, max_inp_size
+    syscall
+    ret
