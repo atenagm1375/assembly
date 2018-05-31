@@ -3,15 +3,15 @@
 ; division, and subtraction-for both integers and floating point numbers
 
 section .data
-    msg db "Enter a valid operation or x to exit:", 10
+    msg db "Enter a valid operation or q to exit:", 10
     msg_len equ $-msg
     errormsg db "Illegal operation. Please, try again.", 10
     error_len equ $-errormsg
     divide_by_zero db "divide by zero", 10
     div_len equ $-divide_by_zero
     result dq 0
-    max_num_size equ 19                 ; max digits of a number
-    max_op_size equ 38
+    max_num_size equ 40                 ; max digits of a number
+    max_op_size equ 40
     max_inp_size equ 200                ; max size of input string
 
 section .bss
@@ -77,7 +77,7 @@ error:
 evaluateInput:
     mov rsi, inp
     mov rdi, num
-    mov rcx, max_inp_size
+    mov rcx, max_op_size
     mov r14, op
     evaluate_while:
         mov r15b, byte[rsi]
@@ -117,6 +117,12 @@ evaluateInput:
     ret
 
     continue_eval:
+    dec rcx
+    cmp rcx, 0
+    jge valid_size
+    call error
+    ret
+    valid_size:
     cmp r15b, byte '='
     je end_eval
     mov byte[r14], r15b
