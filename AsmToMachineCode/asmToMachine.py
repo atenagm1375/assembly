@@ -113,7 +113,7 @@ def get_condition_code(cond):
         return '1111'
 
 
-def get_sib(base_reg, scale_val, index_reg):
+def get_sib(scale_val, index_reg, base_reg=None):
     """corresponds to chart no.8, no.9, and no.10 of slide 09"""
     if scale_val == 1:
         scale = '00'
@@ -130,8 +130,10 @@ def get_sib(base_reg, scale_val, index_reg):
         index = d[index_reg]
     else:
         index = 'error'
-    base = d[base_reg]
-    return scale, index, base
+    if base_reg is not None:
+        base = d[base_reg]
+        return scale, index, base
+    return scale, index
 
 
 def get_index_only(reg):
@@ -175,7 +177,56 @@ def both_registers(mode, arg1, arg2):
 
 
 def reg_mem(mode, arg1, arg2):
-    pass
+    pre = ''
+    reg, w = get_reg_w(mode, arg1)
+    if mode == 32:
+        arg2 = arg2.split('+')
+        arg2.remove('')
+        if len(arg2) == 1:
+            try:
+                mem = "{0:b}".format(int(arg2))
+            except ValueError:
+                op_pre, add_pre = get_prefixes(mode, mode, get_operand_size(arg1), get_operand_size(arg2))
+                if add_pre:
+                    pre += '0110 0111 '
+                if op_pre:
+                    pre += '0110 0110 '
+                if get_operand_size(arg2) == 16:
+                    mem = get_rm(arg2)
+                    if mem == None:
+                        raise ValueError
+                elif get_operand_size(arg2) == 32:
+                    mem = get_index_only(arg2)
+                    if mem == '100':
+                        raise ValueError
+                else:
+                    raise ValueError
+            mod = get_mode(mode)
+            return pre, w + ' ' + mod + ' ' + reg + ' ' + mem + '\n'
+        else:
+            regs = [r for r in arg2 if r in reg_list or r.__contains__('*')]
+            disp = sum([int(i) for i in arg2 if i not in regs])
+            if len(regs) > 2:
+                raise ValueError
+            if len(regs) == 0:
+                mem = "{0:b}".format(disp)
+            if regs[0].__contains__('*'):
+                arr = regs[0].split('*')
+                try:
+                    index = arr[1]
+                    scale = int(arr[0])
+                except ValueError:
+                    index = arr[0]
+                    scale = int(arr[1])
+                if len(regs) == 2:
+                    base = regs[1]
+            else:
+                index = regs[0]
+                if len(regs) == 2:
+                    if regs[1].__contains__('*'):
+                        raise ValueError
+                    base = regs[1]
+
 
 
 def mov(mode, arg1, arg2):
@@ -188,8 +239,9 @@ def mov(mode, arg1, arg2):
     elif arg1 in reg_list and arg2[0] == '[':
         if arg2[-1] != ']':
             raise ValueError
-        arg2.replace('[', '')
-        arg2.replace(']', '')
+        arg2 = arg2.replace('[', '')
+        arg2 = arg2.replace(']', '')
+        arg2 = arg2.replace(' ', '')
         pre, post = reg_mem(mode, arg1, arg2)
         ans = ''
     return ans
@@ -247,6 +299,8 @@ def main():
         for instruction in instructions:
             if '' in instruction:
                 instruction.remove('')
+
+            print(instruction)
 
             if len(instruction) == 3:
                 if instruction[0] == 'mov':
