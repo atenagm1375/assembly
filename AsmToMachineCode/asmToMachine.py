@@ -144,6 +144,26 @@ def get_index_only(reg):
     return '100'
 
 
+def mov(mode, arg1, arg2):
+    pass
+
+
+def sub(mode, arg1, arg2):
+    pass
+
+
+def xor(mode, arg1, arg2):
+    pass
+
+
+def inc(mode, arg):
+    pass
+
+
+def mul(mode, arg):
+    pass
+
+
 def main():
     print('Welcome!\nThis is an assembly-to-machine-code converter.\nSimply choose a mode and then write an assembly' +
           'code operation to get its corresponding machine code.\nWe support the following instructions: \'sub\', ' +
@@ -164,19 +184,41 @@ def main():
             continue
 
         invalid = False
-        instructions = input('Enter the instruction and press enter: ')
+        instructions = input('Enter the instruction and press enter: ').lower()
         instructions = instructions.split(';')
         instructions = [re.split(', |,| |\n|\t', instruction) for instruction in instructions if instruction != '']
-        for i in instructions:
-            if '' in i:
-                i.remove('')
-            if len(i) > 3 or len(i) < 2:
-                'unsupported or wrong instruction. Please try again.'
+        ans = ''
+        for instruction in instructions:
+            if '' in instruction:
+                instruction.remove('')
+
+            if len(instruction) == 3:
+                if instruction[0] == 'mov':
+                    ans += mov(mode, instruction[1], instruction[2])
+                if instruction[0] == 'sub':
+                    ans += sub(mode, instruction[1], instruction[2])
+                if instruction[0] == 'xor':
+                    ans += xor(mode, instruction[1], instruction[2])
+                else:
+                    print('unsupported or wrong instruction. Please try again.')
+                    invalid = True
+                    break
+            elif len(instruction) == 2:
+                if instruction[0] == 'inc':
+                    ans += inc(mode, instruction[1])
+                if instruction[0] == 'mul':
+                    ans += mul(mode, instruction[1])
+                else:
+                    print('unsupported or wrong instruction. Please try again.')
+                    invalid = True
+                    break
+            else:
+                print('unsupported or wrong instruction. Please try again.')
                 invalid = True
                 break
         if invalid:
             continue
-        print(instructions)
+        print(ans)
 
 
 reg_values = ['000', '001', '010', '011', '100', '101', '110', '111']
@@ -186,4 +228,5 @@ registers_dict32 = {('ax', 'al', 'eax'): '000', ('cx', 'cl', 'ecx'): '001', ('dx
 registers_dict64 = {'r' + k[0]: '0' + v for k, v in registers_dict32.items()}
 for i in range(8, 16):
     registers_dict64['r' + str(i)] = '1' + reg_values[i - 8]
+reg_list = list(registers_dict64.keys()) + [reg[i] for i in range(3) for reg in registers_dict32]
 main()
