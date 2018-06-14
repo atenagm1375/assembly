@@ -1,15 +1,13 @@
 import re
 
 
-def get_dflagrexw_prefixes(mode, operand_size, address_size, state=None):
+def get_prefixes(mode, state, operand_size, address_size=None):
     """corresponds to chart no.1 and no.2 of slide 09
     returns operand prefix, address prefix, and Rex.w or DFlag, respectively."""
     if mode == 32:
-        if state == 32:
-            dflag = 1
-        else:
-            dflag = 0
-        return dflag, operand_size != state, address_size != state
+        if address_size is not None:
+            return operand_size != state, address_size != state
+        return operand_size != state
     # TODO add 64bit mode
 
 
@@ -37,9 +35,9 @@ def get_reg_w(mode, name):
             reg = None
 
         if name[1] == 'l' or name[1] == 'h':
-            w = 0
+            w = '0'
         else:
-            w = 1
+            w = '1'
         return reg, w
     # TODO define mode 64bit
 
@@ -144,8 +142,57 @@ def get_index_only(reg):
     return '100'
 
 
-def mov(mode, arg1, arg2):
+def compatible_registers(reg1, reg2):
+    if reg1[0] == reg2[0] and reg1[-1] == reg2[-1]:
+        return True
+    if reg1[-1] == reg2[-1]:
+        return True
+    return False
+
+
+def get_operand_size(reg):
+    if reg[-1] == 'h' or reg[-1] == 'l' or reg[-1] == 'b':
+        return 8
+    if reg[0] == 'e' or reg[-1] == 'd':
+        return 32
+    if reg[0] == 'r' and reg[-1] != 'w':
+        return 64
+    return 16
+
+
+def both_registers(mode, arg1, arg2):
+    pre = ''
+    if mode == 32:
+        reg1, w = get_reg_w(mode, arg2)
+        mod = get_mode(mode, is_memory_ref=False)
+        reg2, w = get_reg_w(mode, arg1)
+        if reg1 is None or w is None or mod is None or reg2 is None or not compatible_registers(arg1, arg2):
+            raise ValueError
+        op_pre = get_prefixes(mode, mode, get_operand_size(arg1))
+        if op_pre and get_operand_size(arg1) != 8:
+            pre = '0110 0110 '
+        return pre, w + ' ' + mod + ' ' + reg1 + ' ' + reg2 + '\n'
+
+
+def reg_mem(mode, arg1, arg2):
     pass
+
+
+def mov(mode, arg1, arg2):
+    ans = ''
+    if arg1 in reg_list and arg2 in reg_list:
+        pre, post = both_registers(mode, arg1, arg2)
+        ans += pre
+        ans += '1000 100'
+        ans += post
+    elif arg1 in reg_list and arg2[0] == '[':
+        if arg2[-1] != ']':
+            raise ValueError
+        arg2.replace('[', '')
+        arg2.replace(']', '')
+        pre, post = reg_mem(mode, arg1, arg2)
+        ans = ''
+    return ans
 
 
 def sub(mode, arg1, arg2):
@@ -169,13 +216,14 @@ def main():
     print('Welcome!\nThis is an assembly-to-machine-code converter.\nSimply choose a mode and then write an assembly' +
           'code operation to get its corresponding machine code.\nWe support the following instructions: \'sub\', ' +
           '\'mov\', \'xor\', \'inc\', and \'mul\'')
+    print('--*--*--*--*--*--*--*--*--*--*--*--*--*--*--*--')
     while True:
-        print('--*--*--*--*--*--*--*--*--*--*--*--*--*--*--*--')
         print('1. x86\n2. x64\n3. quit')
         try:
             mode = int(input('Enter the number of your desired action: '))
         except ValueError:
             print('>>> invalid action. Please, try again.')
+            print('...............................................')
             continue
 
         if mode == 1:
@@ -188,6 +236,7 @@ def main():
             break
         else:
             print('>>> invalid action. Please, try again.')
+            print('...............................................')
             continue
 
         invalid = False
@@ -201,31 +250,41 @@ def main():
 
             if len(instruction) == 3:
                 if instruction[0] == 'mov':
-                    ans += mov(mode, instruction[1], instruction[2])
-                if instruction[0] == 'sub':
+                    try:
+                        ans += mov(mode, instruction[1], instruction[2])
+                    except ValueError:
+                        print('>>> wrong instruction. Please try again.')
+                        print('...............................................')
+                        invalid = True
+                        break
+                elif instruction[0] == 'sub':
                     ans += sub(mode, instruction[1], instruction[2])
-                if instruction[0] == 'xor':
+                elif instruction[0] == 'xor':
                     ans += xor(mode, instruction[1], instruction[2])
                 else:
                     print('>>> unsupported or wrong instruction. Please try again.')
+                    print('...............................................')
                     invalid = True
                     break
             elif len(instruction) == 2:
                 if instruction[0] == 'inc':
                     ans += inc(mode, instruction[1])
-                if instruction[0] == 'mul':
+                elif instruction[0] == 'mul':
                     ans += mul(mode, instruction[1])
                 else:
                     print('>>> unsupported or wrong instruction. Please try again.')
+                    print('...............................................')
                     invalid = True
                     break
             else:
                 print('>>> unsupported or wrong instruction. Please try again.')
+                print('...............................................')
                 invalid = True
                 break
         if invalid:
             continue
         print(ans)
+        print('...............................................')
 
 
 reg_values = ['000', '001', '010', '011', '100', '101', '110', '111']
