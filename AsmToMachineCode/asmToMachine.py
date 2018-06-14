@@ -74,3 +74,77 @@ def get_rm(base, index=None):
             return '100'
         if index == 'di':
             return '101'
+
+
+def get_condition_code(cond):
+    """corresponds to chart no.7 of slide 09"""
+    if cond == 'o':
+        return '0000'
+    if cond == 'no':
+        return '0001'
+    if cond == 'b' or cond == 'nae':
+        return '0010'
+    if cond == 'nb' or cond == 'ae':
+        return '0011'
+    if cond == 'e' or cond == 'z':
+        return '0100'
+    if cond == 'ne' or cond == 'nz':
+        return '0101'
+    if cond == 'be' or cond == 'na':
+        return '0110'
+    if cond == 'nbe' or cond == 'a':
+        return '0111'
+    if cond == 's':
+        return '1000'
+    if cond == 'ns':
+        return '1001'
+    if cond == 'p' or cond == 'pe':
+        return '1010'
+    if cond == 'np' or cond == 'po':
+        return '1011'
+    if cond == 'l' or cond == 'nge':
+        return '1100'
+    if cond == 'nl' or cond == 'ge':
+        return '1101'
+    if cond == 'le' or cond == 'ng':
+        return '1110'
+    if cond == 'nle' or cond == 'g':
+        return '1111'
+
+
+def get_SIB(base_reg, scale_val, index_reg):
+    """corresponds to chart no.8, no.9, and no.10 of slide 09"""
+    if scale_val == 1:
+        scale = '00'
+    elif scale_val == 2:
+        scale = '01'
+    elif scale_val == 4:
+        scale = '10'
+    elif scale_val == 8:
+        scale = '11'
+    else:
+        scale = 'error'
+    d = {k[2]: v for k, v in registers_dict32.items()}
+    if index_reg != 'esp':
+        index = d[index_reg]
+    else:
+        index = 'error'
+    base = d[base_reg]
+    return scale, index, base
+
+
+def get_index_only(reg):
+    """corresponds to chart no.11 of slide 09"""
+    d = {k[2]: v for k, v in registers_dict32.items() if k[2] != 'esp'}
+    if reg in d.keys():
+        return d['reg']
+    return '100'
+
+
+reg_values = ['000', '001', '010', '011', '100', '101', '110', '111']
+registers_dict32 = {('ax', 'al', 'eax'): '000', ('cx', 'cl', 'ecx'): '001', ('dx', 'dl', 'edx'): '010',
+                    ('bx', 'bl', 'ebx'): '011', ('sp', 'ah', 'esp'): '100', ('bp', 'ch', 'ebp'): '101',
+                    ('si', 'dh', 'esi'): '110', ('di', 'bh', 'edi'): '111'}
+registers_dict64 = {'r' + k[0]: '0' + v for k, v in registers_dict32.items()}
+for i in range(8, 16):
+    registers_dict64['r' + str(i)] = '1' + reg_values[i]
