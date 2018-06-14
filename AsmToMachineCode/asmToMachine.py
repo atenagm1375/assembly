@@ -165,12 +165,18 @@ def mul(mode, arg):
 
 
 def main():
+    print('--*--*--*--*--*--*--*--*--*--*--*--*--*--*--*--')
     print('Welcome!\nThis is an assembly-to-machine-code converter.\nSimply choose a mode and then write an assembly' +
           'code operation to get its corresponding machine code.\nWe support the following instructions: \'sub\', ' +
           '\'mov\', \'xor\', \'inc\', and \'mul\'')
     while True:
+        print('--*--*--*--*--*--*--*--*--*--*--*--*--*--*--*--')
         print('1. x86\n2. x64\n3. quit')
-        mode = int(input('Enter the number of your desired action: '))
+        try:
+            mode = int(input('Enter the number of your desired action: '))
+        except ValueError:
+            print('>>> invalid action. Please, try again.')
+            continue
 
         if mode == 1:
             mode = 32
@@ -178,9 +184,10 @@ def main():
             mode = 64
         elif mode == 3:
             print('Good Bye :D')
+            print('...............................................')
             break
         else:
-            print('invalid action. Please, try again.')
+            print('>>> invalid action. Please, try again.')
             continue
 
         invalid = False
@@ -200,7 +207,7 @@ def main():
                 if instruction[0] == 'xor':
                     ans += xor(mode, instruction[1], instruction[2])
                 else:
-                    print('unsupported or wrong instruction. Please try again.')
+                    print('>>> unsupported or wrong instruction. Please try again.')
                     invalid = True
                     break
             elif len(instruction) == 2:
@@ -209,11 +216,11 @@ def main():
                 if instruction[0] == 'mul':
                     ans += mul(mode, instruction[1])
                 else:
-                    print('unsupported or wrong instruction. Please try again.')
+                    print('>>> unsupported or wrong instruction. Please try again.')
                     invalid = True
                     break
             else:
-                print('unsupported or wrong instruction. Please try again.')
+                print('>>> unsupported or wrong instruction. Please try again.')
                 invalid = True
                 break
         if invalid:
