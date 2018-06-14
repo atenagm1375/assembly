@@ -1,3 +1,6 @@
+import re
+
+
 def get_dflagrexw_prefixes(mode, operand_size, address_size, state=None):
     """corresponds to chart no.1 and no.2 of slide 09
     returns operand prefix, address prefix, and Rex.w or DFlag, respectively."""
@@ -112,7 +115,7 @@ def get_condition_code(cond):
         return '1111'
 
 
-def get_SIB(base_reg, scale_val, index_reg):
+def get_sib(base_reg, scale_val, index_reg):
     """corresponds to chart no.8, no.9, and no.10 of slide 09"""
     if scale_val == 1:
         scale = '00'
@@ -141,10 +144,46 @@ def get_index_only(reg):
     return '100'
 
 
+def main():
+    print('Welcome!\nThis is an assembly-to-machine-code converter.\nSimply choose a mode and then write an assembly' +
+          'code operation to get its corresponding machine code.\nWe support the following instructions: \'sub\', ' +
+          '\'mov\', \'xor\', \'inc\', and \'mul\'')
+    while True:
+        print('1. x86\n2. x64\n3. quit')
+        mode = int(input('Enter the number of your desired action: '))
+
+        if mode == 1:
+            mode = 32
+        elif mode == 2:
+            mode = 64
+        elif mode == 3:
+            print('Good Bye :D')
+            break
+        else:
+            print('invalid action. Please, try again.')
+            continue
+
+        invalid = False
+        instructions = input('Enter the instruction and press enter: ')
+        instructions = instructions.split(';')
+        instructions = [re.split(', |,| |\n|\t', instruction) for instruction in instructions if instruction != '']
+        for i in instructions:
+            if '' in i:
+                i.remove('')
+            if len(i) > 3 or len(i) < 2:
+                'unsupported or wrong instruction. Please try again.'
+                invalid = True
+                break
+        if invalid:
+            continue
+        print(instructions)
+
+
 reg_values = ['000', '001', '010', '011', '100', '101', '110', '111']
 registers_dict32 = {('ax', 'al', 'eax'): '000', ('cx', 'cl', 'ecx'): '001', ('dx', 'dl', 'edx'): '010',
                     ('bx', 'bl', 'ebx'): '011', ('sp', 'ah', 'esp'): '100', ('bp', 'ch', 'ebp'): '101',
                     ('si', 'dh', 'esi'): '110', ('di', 'bh', 'edi'): '111'}
 registers_dict64 = {'r' + k[0]: '0' + v for k, v in registers_dict32.items()}
 for i in range(8, 16):
-    registers_dict64['r' + str(i)] = '1' + reg_values[i]
+    registers_dict64['r' + str(i)] = '1' + reg_values[i - 8]
+main()
