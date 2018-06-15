@@ -140,7 +140,7 @@ def get_index_only(reg):
     """corresponds to chart no.11 of slide 09"""
     d = {k[2]: v for k, v in registers_dict32.items() if k[2] != 'esp'}
     if reg in d.keys():
-        return d['reg']
+        return d[reg]
     return '100'
 
 
@@ -181,22 +181,27 @@ def reg_mem(mode, arg1, arg2):
     reg, w = get_reg_w(mode, arg1)
     if mode == 32:
         arg2 = arg2.split('+')
-        arg2.remove('')
         if len(arg2) == 1:
             try:
-                mem = "{0:b}".format(int(arg2))
+                mem = "{0:b}".format(int(arg2[0]))
+                a = 4 - int(len(mem) / 8)
+                for i in range(a):
+                    mem += '0000'
+                op_pre = get_prefixes(mode, mode, get_operand_size(arg1))
+                if op_pre and get_operand_size(arg1) != 8:
+                    pre += '0110 0110 '
             except ValueError:
-                op_pre, add_pre = get_prefixes(mode, mode, get_operand_size(arg1), get_operand_size(arg2))
+                op_pre, add_pre = get_prefixes(mode, mode, get_operand_size(arg1), get_operand_size(arg2[0]))
                 if add_pre:
                     pre += '0110 0111 '
-                if op_pre:
+                if op_pre and get_operand_size(arg1) != 8:
                     pre += '0110 0110 '
-                if get_operand_size(arg2) == 16:
-                    mem = get_rm(arg2)
+                if get_operand_size(arg2[0]) == 16:
+                    mem = get_rm(arg2[0])
                     if mem == None:
                         raise ValueError
-                elif get_operand_size(arg2) == 32:
-                    mem = get_index_only(arg2)
+                elif get_operand_size(arg2[0]) == 32:
+                    mem = get_index_only(arg2[0])
                     if mem == '100':
                         raise ValueError
                 else:
@@ -243,7 +248,9 @@ def mov(mode, arg1, arg2):
         arg2 = arg2.replace(']', '')
         arg2 = arg2.replace(' ', '')
         pre, post = reg_mem(mode, arg1, arg2)
-        ans = ''
+        ans += pre
+        ans += '1000 101'
+        ans += post
     return ans
 
 
@@ -293,6 +300,12 @@ def main():
 
         invalid = False
         instructions = input('Enter the instruction and press enter: ').lower()
+        instructions = instructions.replace(' + ', '+')
+        instructions = instructions.replace(' +', '+')
+        instructions = instructions.replace('+ ', '+')
+        instructions = instructions.replace(' * ', '*')
+        instructions = instructions.replace(' *', '*')
+        instructions = instructions.replace('* ', '*')
         instructions = instructions.split(';')
         instructions = [re.split(', |,| |\n|\t', instruction) for instruction in instructions if instruction != '']
         ans = ''
@@ -300,7 +313,7 @@ def main():
             if '' in instruction:
                 instruction.remove('')
 
-            print(instruction)
+            # print(instruction)
 
             if len(instruction) == 3:
                 if instruction[0] == 'mov':
