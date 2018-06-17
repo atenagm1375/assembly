@@ -1,4 +1,4 @@
-from constants import size, mod, rmx86, registersx86, registersx64
+from constants import *
 
 
 def get_register_size(reg):
@@ -56,6 +56,6 @@ def get_reg_rm(arch, index, base=None):
             return '100'
     if arch == size[3]:
         if base_size == 0 and index_size > size[1]:
-            return registersx64[index]
+            return registersx86[index]
         if base_size == size[2] and index_size == size[2]:
             return '100'
