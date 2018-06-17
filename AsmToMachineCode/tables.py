@@ -1,33 +1,61 @@
-registersx86 = {'al': '000', 'ax': '000', 'eax': '000',
-                'cl': '001', 'cx': '001', 'ecx': '001',
-                'dl': '010', 'dx': '010', 'edx': '010',
-                'bl': '011', 'bx': '011', 'ebx': '011',
-                'ah': '100', 'sp': '100', 'esp': '100',
-                'ch': '101', 'bp': '101', 'ebp': '101',
-                'dh': '110', 'si': '110', 'esi': '110',
-                'bh': '111', 'di': '111', 'edi': '111'}
+from constants import size, mod, rmx86, registersx86, registersx64
 
 
-registersx64 = {k: '0' + v for k, v in registersx86.items()}
-
-for k in registersx86.keys():
-    if len(k) == 3:
-        new_k = k[:]
-        new_k = new_k.replace('e', 'r')
-        registersx64[new_k] = '0' + registersx86[k]
-
-for i in range(8, 16):
-    registersx64['r' + str(i) + 'b'] = '1' + '{0:03b}'.format(i - 8)
-    registersx64['r' + str(i) + 'w'] = '1' + '{0:03b}'.format(i - 8)
-    registersx64['r' + str(i) + 'd'] = '1' + '{0:03b}'.format(i - 8)
-    registersx64['r' + str(i)] = '1' + '{0:03b}'.format(i - 8)
+def get_register_size(reg):
+    if reg is None:
+        return 0
+    if reg[0] == 'e':
+        return size[2]
+    if reg[0] == 'r':
+        return size[3]
+    if reg[-1] == 'l' or reg[-1] == 'h':
+        return size[0]
+    return size[1]
 
 
-opcode = {'mov': {'r/m,r': '1000100w', 'r,m': '1000101w', 'r/m,d': '1100011w'},
-          'sub': {'r/m,r': '0010100w', 'r,m': '0010101w', 'r/m,d': '001011sw'},
-          'xor': {'r/m,r': '0011000w', 'r,m': '0011001w', 'r/m,d': '001101sw'},
-          'mul': {'r': '1111011w11100'},
-          'not': {'r': '1111011w11010'}}
+def has_operand_prefix(arch, state, op_size):
+    if arch == size[2]:
+        return state != op_size and op_size != size[0]
+    return op_size == size[1]
 
 
-Rex = '0100wrxb'
+def has_address_prefix(arch, state, add_size):
+    if arch == size[2]:
+        return state != add_size
+    if add_size <= size[1]:
+        return None
+    return add_size == size[2]
+
+
+def get_w(reg_size):
+    if reg_size == size[0]:
+        return 0
+    return 1
+
+
+def get_mod(disp_size, is_mem=True):
+    if disp_size == size[0]:
+        return mod[1]
+    if disp_size == size[1] or disp_size == size[2]:
+        return mod[2]
+    if is_mem:
+        return mod[0]
+    if not is_mem:
+        return mod[3]
+
+
+def get_reg_rm(arch, index, base=None):
+    index_size = get_register_size(index)
+    base_size = get_register_size(base)
+    if arch == size[2]:
+        if index_size == size[1] and (base is None or base_size == size[1]):
+            return rmx86[index][base]
+        if base_size == 0 and index_size == size[2]:
+            return registersx86[index]
+        if base_size == size[2] and index_size == size[2]:
+            return '100'
+    if arch == size[3]:
+        if base_size == 0 and index_size > size[1]:
+            return registersx64[index]
+        if base_size == size[2] and index_size == size[2]:
+            return '100'

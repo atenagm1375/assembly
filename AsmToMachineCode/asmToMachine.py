@@ -1,4 +1,4 @@
-from tables import *
+from constants import *
 
 print(registersx64)
 # import re
