@@ -1,4 +1,4 @@
-from deocde import decode, size
+from deocde import *
 
 print('--*--*--*--*--*--*--*--*--*--*--*--*--*--*--*--')
 print('Welcome!\nThis is an assembly-to-machine-code converter.\nSimply choose a mode and then write an assembly' +
@@ -42,9 +42,17 @@ while True:
     for instruction in instructions:
     #     if '' in instruction:
     #         instruction.remove('')
-        instruction = instruction.strip(' ')
+        instruction = instruction.strip()
+        if instruction.count(',') >= 2:
+            print('>>> Invalid number of arguments! Please try again.')
+            break
+        # print(instruction)
     #     ans += decode(instruction)
     #     ans += '\n'
+        if instruction != '':
+            try:
+                print(decode(mode, instruction))
+            except InstructionError as err:
+                print(err)
 
-        print(decode(instruction))
     print('...............................................')
