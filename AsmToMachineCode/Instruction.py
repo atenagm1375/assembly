@@ -18,8 +18,6 @@ class Instruction:
             raise InstructionError(invalid_num_of_args_msg)
         if isNumber(self.args[0]):
             raise InstructionError(bad_expression_msg)
-        if self.args[1] is not None and '[' in self.args[0] and '[' in self.args[1]:
-            raise InstructionError(both_mem_msg)
         if self.args[0] not in registersx64.keys() and self.args[1] not in registersx64.keys():
             valid = False
             for s in instruction_size_set.keys():
@@ -48,6 +46,12 @@ class Instruction:
                     self.arg_types[j] = 'd'
                 elif self.args[j] not in registersx64.keys():
                     raise InstructionError(bad_expression_msg)
+
+    def translate(self):
+        ans = ''
+        if self.arg_types[0] == 'm' and self.arg_types[1] == 'm':
+            raise InstructionError(both_mem_msg)
+        return ans
 
 
 class InstructionError(Exception):

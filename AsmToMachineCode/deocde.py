@@ -15,3 +15,4 @@ def decode(mode, instr):
     instruction = instruction.groupdict()
     instruction = Instruction(mode, instruction['instr'], instruction['arg1'], instruction['arg2'])
     instruction.validate_arguments()
+    return instruction.translate()
