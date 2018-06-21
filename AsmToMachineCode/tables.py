@@ -13,6 +13,12 @@ def get_register_size(reg):
     return size[1]
 
 
+def isNumber(s):
+    if (s[:2] == '0x' and s[2:].isdigit()) or s.isdigit():
+        return True
+    return False
+
+
 def has_operand_prefix(arch, state, op_size):
     if arch == size[2]:
         return state != op_size and op_size != size[0]

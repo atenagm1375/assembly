@@ -50,3 +50,12 @@ mod = ('00', '01', '10', '11')
 
 
 scale = {'1': '00', '2': '01', '4': '10', '8': '11'}
+
+
+instruction_size_set = {'byte': size[0], 'dword': size[2], 'qword': size[3], 'word': size[1]}
+
+
+bad_expression_msg = 'Bad expression! Please try again.'
+both_mem_msg = 'Both arguments cannot be a memory! Please try again.'
+invalid_num_of_args_msg = 'Invalid number of arguments! Please try again.'
+ambiguous_operand_size_msg = 'Ambiguous operand size! Please try again.'

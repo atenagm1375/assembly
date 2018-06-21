@@ -54,5 +54,6 @@ while True:
                 print(decode(mode, instruction))
             except InstructionError as err:
                 print(err)
+                break
 
     print('...............................................')
