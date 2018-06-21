@@ -38,9 +38,7 @@ class Instruction:
                             self.args[j] = self.args[j].replace('ptr', ' ')
                     self.args[j] = self.args[j].strip()
                     self.args[j].join(self.args[j].split())
-                    print(self.args[j])
                     if self.args[j][0] != '[' or self.args[j][-1] != ']':
-                        print('nooooooo', self.args[j][0], self.args[j][-1], self.args[j])
                         raise InstructionError(bad_expression_msg)
                 elif isNumber(self.args[j]):
                     self.arg_types[j] = 'd'

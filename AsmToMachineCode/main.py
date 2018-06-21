@@ -53,7 +53,7 @@ while True:
             try:
                 print(decode(mode, instruction))
             except InstructionError as err:
-                print(err)
+                print('>>>', err)
                 break
 
     print('...............................................')
