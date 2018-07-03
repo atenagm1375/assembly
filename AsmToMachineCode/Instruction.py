@@ -58,6 +58,9 @@ class Instruction:
                     raise InstructionError(bad_expression_msg)
 
     def translate(self):
+        if self.operation == 'mul' or self.operation == 'not':
+            self.arg_types[1] = ''
+            self.args[1] = ''
         if self.arg_types[0] == 'm' and self.arg_types[1] == 'm':
             raise InstructionError(both_mem_msg)
         self.opcode = opcode[self.operation][self.arg_types[0] + self.arg_types[1]]
