@@ -62,9 +62,6 @@ class Instruction:
             raise InstructionError(both_mem_msg)
         self.opcode = opcode[self.operation][self.arg_types[0] + self.arg_types[1]]
 
-        if self.arg_types[1] == 'd':
-            self.data, self.extra = self.analyze_data(self.args[1])
-
         for j in range(2):
             if self.arg_types[j] == 'r':
                 rs = get_register_size(self.args[j])
@@ -87,6 +84,7 @@ class Instruction:
                 else:
                     self.reg = opcode[self.operation]['op']
                     self.rm = registersx64[self.args[j]][1:]
+                    self.mod = '11'
                     if self.mode == size[3]:
                         self.rex = self.rex.replace('r', '1')
                         self.rex = self.rex.replace('b', registersx64[self.args[j]][0])
@@ -154,23 +152,37 @@ class Instruction:
         if has_operand_prefix(self.mode, self.mode, self.size):
             self.operand_prefix = operand_prefix
 
+        if self.arg_types[1] == 'd':
+            self.data, self.extra = self.analyze_data(self.args[1])
+
         return self.address_prefix + self.operand_prefix + self.rex + self.opcode + self.mod + self.reg + self.rm + \
             self.scale + self.index + self.base + self.displacement + self.data
 
     def analyze_data(self, val, num_of_bits=0):
         d, e = '', ''
         if num_of_bits == 0:
-            if self.mode == size[2]:
-                num_of_bits = 32
-            else:
+            num_of_bits = self.size
+            if num_of_bits == size[3]:
                 num_of_bits = 40
+        isneg = False
+        if val[0] == '-':
+            isneg = True
+            val = val.replace('-', '')
         if val[:2] == '0x':
             val = val.replace('0x', '')
             if len(val) % 2 != 0:
                 val = '0' + val
-            val = bin(int(val, 16))[2:].zfill(num_of_bits)
+            if isneg:
+                val = '-'
+                val = tobin(int(val), num_of_bits)
+            else:
+                val = bin(int(val, 16))[2:].zfill(num_of_bits)
         else:
-            val = bin(int(val))[2:].zfill(num_of_bits)
+            if isneg:
+                val = '-' + val
+                val = tobin(int(val), num_of_bits)
+            else:
+                val = bin(int(val))[2:].zfill(num_of_bits)
         d = ''.join([val[j - 8:j] for j in range(len(val), -1, -8)])
         if num_of_bits == 40 and len(d) > num_of_bits:
             e = '0111' + d[40:64]

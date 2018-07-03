@@ -3,7 +3,7 @@ from deocde import *
 print('--*--*--*--*--*--*--*--*--*--*--*--*--*--*--*--')
 print('Welcome!\nThis is an assembly-to-machine-code converter.\nSimply choose a mode and then write an assembly' +
       'code operation to get its corresponding machine code.\nWe support the following instructions: \'sub\', ' +
-      '\'mov\', \'xor\', \'not\', and \'mul\'')
+      '\'add\', \'xor\', \'not\', and \'mul\'')
 print('--*--*--*--*--*--*--*--*--*--*--*--*--*--*--*--')
 while True:
     print('1. x86\n2. x64\n3. quit')

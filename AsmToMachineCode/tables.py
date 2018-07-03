@@ -14,7 +14,7 @@ def get_register_size(reg):
 
 
 def isNumber(s):
-    if (s[:2] == '0x') or s.isdigit():
+    if (s[:2] == '0x') or s.isdigit() or s[0] == '-':
         return True
     return False
 
@@ -65,3 +65,13 @@ def get_reg_rm(arch, index, base=None):
             return registersx86[index]
         if base_size == size[2] and index_size == size[2]:
             return '100'
+
+
+def getBit(y, x):
+    return str((x>>y)&1)
+
+
+def tobin(x, count=8):
+    shift = range(count-1, -1, -1)
+    bits = map(lambda y: getBit(y, x), shift)
+    return "".join(bits)
