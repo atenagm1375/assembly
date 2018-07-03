@@ -66,7 +66,7 @@ class Instruction:
         self.opcode = opcode[self.operation][self.arg_types[0] + self.arg_types[1]]
         if self.mode == size[3]:
             self.rex = Rex
-            rex_r, rex_x, rex_b = '', '', ''
+            rex_r, rex_x, rex_b = '0', '0', '0'
 
         for j in range(2):
             if self.arg_types[j] == 'r':
