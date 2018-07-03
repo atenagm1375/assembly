@@ -14,7 +14,7 @@ def get_register_size(reg):
 
 
 def isNumber(s):
-    if (s[:2] == '0x' and s[2:].isdigit()) or s.isdigit():
+    if (s[:2] == '0x') or s.isdigit():
         return True
     return False
 

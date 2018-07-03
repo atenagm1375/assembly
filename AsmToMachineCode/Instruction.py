@@ -72,24 +72,23 @@ class Instruction:
 
     def analyze_data(self, val):
         if self.mode == size[2]:
-            d = ['0'] * 32
+            num_of_bits = 32
         else:
-            d = ['0'] * 40
-            self.extra = '0111' + '{0:24b}'.format(0)
+            num_of_bits = 40
         if val[:2] == '0x':
             val = val.replace('0x', '')
-            print(val)
             if len(val) % 2 != 0:
                 val = '0' + val
-                print(val)
-            # d = list(self.data)
-            for i in range(len(val) - 1, -1, -2):
-                d[len(val) - i - 1] = '{0:04b}'.format(int(val[i - 1]))
-                d[len(val) - i] = '{0:04b}'.format(int(val[i]))
-            self.data = ''.join(d)
-            print(self.data)
+            val = bin(int(val, 16))[2:].zfill(num_of_bits)
         else:
-            bin(int(val))
+            val = bin(int(val))[2:].zfill(num_of_bits)
+        self.data = ''.join([val[i - 8:i] for i in range(len(val), -1, -8)])
+        if num_of_bits == 40 and len(self.data) > num_of_bits:
+            self.extra = '0111' + self.data[40:64]
+            self.data = self.data[:40]
+        else:
+            self.data = self.data[:num_of_bits]
+        print(self.data, self.extra)
 
 
 class InstructionError(Exception):
