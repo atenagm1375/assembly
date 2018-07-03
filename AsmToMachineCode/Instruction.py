@@ -64,6 +64,9 @@ class Instruction:
         if self.arg_types[0] == 'm' and self.arg_types[1] == 'm':
             raise InstructionError(both_mem_msg)
         self.opcode = opcode[self.operation][self.arg_types[0] + self.arg_types[1]]
+        if self.mode == size[3]:
+            self.rex = Rex
+            rex_r, rex_x, rex_b = '', '', ''
 
         for j in range(2):
             if self.arg_types[j] == 'r':
@@ -76,27 +79,29 @@ class Instruction:
                     if self.reg == '':
                         self.reg = registersx64[self.args[j]][1:]
                         if self.mode == size[3]:
-                            self.rex = self.rex.replace('r', registersx64[self.args[j]][0])
+                            rex_r = registersx64[self.args[j]][0]
                     elif self.arg_types[1] == 'r':
-                        self.rm = registersx86[self.args[1]]
+                        self.rm = registersx64[self.args[1]][1:]
                         self.mod = '11'
-                        if self.mode == size[3]:
-                            self.rex = self.rex.replace('b', registersx64[self.args[1]][0])
-                            self.rex = self.rex.replace('x', '0')
                         self.reg, self.rm = self.rm, self.reg
+                        if self.mode == size[3]:
+                            rex_r = registersx64[self.args[1]][0]
+                            rex_b = registersx64[self.args[0]][0]
+                            rex_x = '0'
                 else:
                     self.reg = opcode[self.operation]['op']
                     self.rm = registersx64[self.args[j]][1:]
                     self.mod = '11'
                     if self.mode == size[3]:
-                        self.rex = self.rex.replace('r', '1')
-                        self.rex = self.rex.replace('b', registersx64[self.args[j]][0])
+                        rex_r = '0'
+                        rex_b = registersx64[self.args[j]][0]
+                        rex_x = '0'
             if self.arg_types[j] == 'm':
                 mem = self.args[j].replace(' ', '')
                 mem = mem.replace('[', '')
                 mem = mem.replace(']', '')
                 mem = mem.split('+')
-                if len(mem) == 1 and mem not in registersx86:
+                if len(mem) == 1 and mem not in registersx64.keys():
                     self.get_displacement()
                     continue
                 print(mem)
@@ -104,7 +109,7 @@ class Instruction:
                     if '*' in el:
                         subel = el.split('*')
                         for sel in subel:
-                            if sel in registersx86.keys():
+                            if sel in registersx64.keys():
                                 self.index = sel
                             else:
                                 if sel == '1':
@@ -117,7 +122,7 @@ class Instruction:
                                     self.scale = '11'
                                 else:
                                     raise InstructionError(bad_expression_msg)
-                    elif el in registersx86.keys():
+                    elif el in registersx64.keys():
                         if self.index == '':
                             self.index = el
                         else:
@@ -135,22 +140,25 @@ class Instruction:
                     self.index, self.base = '', ''
                 elif self.rm == '100':
                     if self.mode == size[3]:
-                        self.rex = self.rex.replace('x', registersx64[self.index][0])
-                        self.rex = self.rex.replace('b', registersx64[self.base][0])
-                    self.index, self.base = registersx86[self.index], registersx86[self.base]
+                        rex_x = registersx64[self.index][0]
+                        rex_b = registersx64[self.base][0]
+                    self.index, self.base = registersx64[self.index][1:], registersx64[self.base][1:]
                     if self.scale == '':
                         self.scale = '00'
                 else:
                     if self.mode == size[3]:
-                        self.rex = self.rex.replace('b', registersx64[self.index][0])
-                        self.rex = self.rex.replace('x', '0')
+                        rex_b = registersx64[self.index][0]
+                        rex_x = '0'
                     self.index, self.base = '', ''
                 disp_size = self.get_displacement()
                 self.mod = get_mod(disp_size, True)
 
         self.opcode = self.opcode.replace('w', get_w(self.size))
         if self.mode == size[3]:
-            self.rex = Rex.replace('w', '1' if self.size == self.mode else '0')
+            self.rex = self.rex.replace('w', '1' if self.size == self.mode else '0')
+            self.rex = self.rex.replace('r', rex_r)
+            self.rex = self.rex.replace('x', rex_x)
+            self.rex = self.rex.replace('b', rex_b)
 
         if has_operand_prefix(self.mode, self.mode, self.size):
             self.operand_prefix = operand_prefix
