@@ -35,8 +35,8 @@ def has_address_prefix(arch, state, add_size):
 
 def get_w(reg_size):
     if reg_size == size[0]:
-        return 0
-    return 1
+        return '0'
+    return '1'
 
 
 def get_mod(disp_size, is_mem=True):

@@ -63,7 +63,7 @@ class Instruction:
         self.opcode = opcode[self.operation][self.arg_types[0] + self.arg_types[1]]
 
         if self.arg_types[1] == 'd':
-            self.analyze_data(self.args[1])
+            self.data, self.extra = self.analyze_data(self.args[1])
 
         for j in range(2):
             if self.arg_types[j] == 'r':
@@ -73,19 +73,83 @@ class Instruction:
                 self.size = rs
 
                 if self.arg_types[1] != 'd':
-                    self.reg = registersx64[self.args[0]][1:]
-                    if self.mode == size[3]:
-                        self.rex = self.rex.replace('r', registersx64[self.args[0]][0])
+                    if self.reg == '':
+                        self.reg = registersx64[self.args[j]][1:]
+                        if self.mode == size[3]:
+                            self.rex = self.rex.replace('r', registersx64[self.args[j]][0])
+                    elif self.arg_types[1] == 'r':
+                        self.rm = registersx86[self.args[1]]
+                        self.mod = '11'
+                        if self.mode == size[3]:
+                            self.rex = self.rex.replace('b', registersx64[self.args[1]][0])
+                            self.rex = self.rex.replace('x', '0')
+                        self.reg, self.rm = self.rm, self.reg
                 else:
                     self.reg = opcode[self.operation]['op']
-                    self.rm = registersx64[self.args[0]][1:]
+                    self.rm = registersx64[self.args[j]][1:]
                     if self.mode == size[3]:
-                        self.rex = self.rex.replace('r', 1)
-                        self.rex = self.rex.replace('b', registersx64[self.args[0]][0])
+                        self.rex = self.rex.replace('r', '1')
+                        self.rex = self.rex.replace('b', registersx64[self.args[j]][0])
+            if self.arg_types[j] == 'm':
+                mem = self.args[j].replace(' ', '')
+                mem = mem.replace('[', '')
+                mem = mem.replace(']', '')
+                mem = mem.split('+')
+                if len(mem) == 1 and mem not in registersx86:
+                    self.get_displacement()
+                    continue
+                print(mem)
+                for el in mem:
+                    if '*' in el:
+                        subel = el.split('*')
+                        for sel in subel:
+                            if sel in registersx86.keys():
+                                self.index = sel
+                            else:
+                                if sel == '1':
+                                    self.scale = '00'
+                                elif sel == '2':
+                                    self.scale = '01'
+                                elif sel == '4':
+                                    self.scale = '10'
+                                elif sel == '8':
+                                    self.scale = '11'
+                                else:
+                                    raise InstructionError(bad_expression_msg)
+                    elif el in registersx86.keys():
+                        if self.index == '':
+                            self.index = el
+                        else:
+                            self.base = el
+                    elif isNumber(el):
+                        self.displacement = el
+                    else:
+                        raise InstructionError(bad_expression_msg)
+
+                mem_size = get_register_size(self.index)
+                if has_address_prefix(self.mode, self.mode, mem_size):
+                    self.address_prefix = address_prefix
+                self.rm = get_reg_rm(self.mode, self.index, self.base if self.base != '' else None)
+                if mem_size == size[1]:
+                    self.index, self.base = '', ''
+                elif self.rm == '100':
+                    if self.mode == size[3]:
+                        self.rex = self.rex.replace('x', registersx64[self.index][0])
+                        self.rex = self.rex.replace('b', registersx64[self.base][0])
+                    self.index, self.base = registersx86[self.index], registersx86[self.base]
+                    if self.scale == '':
+                        self.scale = '00'
+                else:
+                    if self.mode == size[3]:
+                        self.rex = self.rex.replace('b', registersx64[self.index][0])
+                        self.rex = self.rex.replace('x', '0')
+                    self.index, self.base = '', ''
+                disp_size = self.get_displacement()
+                self.mod = get_mod(disp_size, True)
 
         self.opcode = self.opcode.replace('w', get_w(self.size))
         if self.mode == size[3]:
-            self.rex = Rex.replace('w', 1 if self.size == self.mode else 0)
+            self.rex = Rex.replace('w', '1' if self.size == self.mode else '0')
 
         if has_operand_prefix(self.mode, self.mode, self.size):
             self.operand_prefix = operand_prefix
@@ -93,11 +157,13 @@ class Instruction:
         return self.address_prefix + self.operand_prefix + self.rex + self.opcode + self.mod + self.reg + self.rm + \
             self.scale + self.index + self.base + self.displacement + self.data
 
-    def analyze_data(self, val):
-        if self.mode == size[2]:
-            num_of_bits = 32
-        else:
-            num_of_bits = 40
+    def analyze_data(self, val, num_of_bits=0):
+        d, e = '', ''
+        if num_of_bits == 0:
+            if self.mode == size[2]:
+                num_of_bits = 32
+            else:
+                num_of_bits = 40
         if val[:2] == '0x':
             val = val.replace('0x', '')
             if len(val) % 2 != 0:
@@ -105,12 +171,23 @@ class Instruction:
             val = bin(int(val, 16))[2:].zfill(num_of_bits)
         else:
             val = bin(int(val))[2:].zfill(num_of_bits)
-        self.data = ''.join([val[j - 8:j] for j in range(len(val), -1, -8)])
-        if num_of_bits == 40 and len(self.data) > num_of_bits:
-            self.extra = '0111' + self.data[40:64]
-            self.data = self.data[:40]
+        d = ''.join([val[j - 8:j] for j in range(len(val), -1, -8)])
+        if num_of_bits == 40 and len(d) > num_of_bits:
+            e = '0111' + d[40:64]
+            d = d[:40]
         else:
-            self.data = self.data[:num_of_bits]
+            d = d[:num_of_bits]
+        return d, e
+
+    def get_displacement(self):
+        disp_size = 0
+        if self.displacement[:2] == '0x':
+            if len(bin(int(self.displacement[2:], 16))[2:]) <= 8:
+                disp_size = 8
+            else:
+                disp_size = 32
+        self.displacement, junk = self.analyze_data(self.displacement, disp_size)
+        return disp_size
 
 
 class InstructionError(Exception):
