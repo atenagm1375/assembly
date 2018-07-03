@@ -14,4 +14,6 @@ def decode(mode, instr):
     instruction = instruction.groupdict()
     instruction = Instruction(mode, instruction['instr'], instruction['arg1'], instruction['arg2'])
     instruction.validate_arguments()
-    return instruction.translate()
+    ans = instruction.translate()
+    ans = ' '.join([ans[i : i + 4] for i in range(0, len(ans), 4)])
+    return ans
