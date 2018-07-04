@@ -101,7 +101,7 @@ class Instruction:
                 mem = mem.replace('[', '')
                 mem = mem.replace(']', '')
                 mem = mem.split('+')
-                if len(mem) == 1 and mem not in registersx64.keys():
+                if len(mem) == 1 and mem[0] not in registersx64.keys():
                     self.get_displacement()
                     continue
                 print(mem)
@@ -132,13 +132,16 @@ class Instruction:
                     else:
                         raise InstructionError(bad_expression_msg)
 
-                mem_size = get_register_size(self.index)
+                mem_size = get_register_size(self.index if self.index != '' else self.base)
+                if self.index == 'si' or self.index == 'di':
+                    self.index, self.base = self.base, self.index
                 if has_address_prefix(self.mode, self.mode, mem_size):
                     self.address_prefix = address_prefix
-                self.rm = get_reg_rm(self.mode, self.index, self.base if self.base != '' else None)
+                self.rm = get_reg_rm(self.mode, self.index if self.index != '' else None,
+                                     self.base if self.base != '' else None)
                 if mem_size == size[1]:
                     self.index, self.base = '', ''
-                elif self.rm == '100':
+                elif self.rm == '100' and self.size != size[1]:
                     if self.mode == size[3]:
                         rex_x = registersx64[self.index][0]
                         rex_b = registersx64[self.base][0]
@@ -150,8 +153,14 @@ class Instruction:
                         rex_b = registersx64[self.index][0]
                         rex_x = '0'
                     self.index, self.base = '', ''
-                disp_size = self.get_displacement()
+                disp_size = 0
+                if self.displacement != '':
+                    disp_size = self.get_displacement()
                 self.mod = get_mod(disp_size, True)
+                if disp_size == 0 and self.index == '' and self.base == '' and self.rm == '110':
+                    self.displacement = '00000000'
+                if disp_size > mem_size:
+                    self.displacement = self.displacement[:mem_size]
 
         self.opcode = self.opcode.replace('w', get_w(self.size))
         if self.mode == size[3]:
@@ -165,6 +174,19 @@ class Instruction:
 
         if self.arg_types[1] == 'd':
             self.data, self.extra = self.analyze_data(self.args[1])
+
+        # print('addpre:', self.address_prefix)
+        # print('oppre:', self.operand_prefix)
+        # print('rex:', self.rex)
+        # print('data:', self.data)
+        # print('opcode:', self.opcode)
+        # print('mod:', self.mod)
+        # print('reg:', self.reg)
+        # print('rm:', self.rm)
+        # print('scale:', self.scale)
+        # print('index:', self.index)
+        # print('base:', self.base)
+        # print('disp:', self.displacement)
 
         return self.address_prefix + self.operand_prefix + self.rex + self.opcode + self.mod + self.reg + self.rm + \
             self.scale + self.index + self.base + self.displacement + self.data
@@ -207,6 +229,8 @@ class Instruction:
         if self.displacement[:2] == '0x':
             if len(bin(int(self.displacement[2:], 16))[2:]) <= 8:
                 disp_size = 8
+            elif len(bin(int(self.displacement[2:], 16))[2:]) <= 16:
+                disp_size = 16
             else:
                 disp_size = 32
         self.displacement, junk = self.analyze_data(self.displacement, disp_size)
