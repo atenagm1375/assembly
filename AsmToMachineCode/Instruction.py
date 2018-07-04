@@ -131,7 +131,7 @@ class Instruction:
                         self.displacement = el
                     else:
                         raise InstructionError(bad_expression_msg)
-                if self.arg_types[1] == 'd':
+                if self.arg_types[1] == 'd' or self.args[1] == '':
                     self.reg = opcode[self.operation]['op']
 
                 mem_size = get_register_size(self.index if self.index != '' else self.base)
@@ -159,6 +159,7 @@ class Instruction:
                         rex_x = '0'
                     self.index, self.base = '', ''
                 disp_size = 0
+                print(self.displacement)
                 if self.displacement != '':
                     disp_size = self.get_displacement()
                 self.mod = get_mod(disp_size, True)
@@ -233,11 +234,22 @@ class Instruction:
 
     def get_displacement(self):
         disp_size = 0
+        n = False
+        if self.displacement[0] == '-':
+            n = True
+            self.displacement = self.displacement.replace('-', '')
         if self.displacement[:2] == '0x':
             if len(bin(int(self.displacement[2:], 16))[2:]) <= 8:
                 disp_size = 8
             else:
                 disp_size = 32
+        else:
+            if len(bin(int(self.displacement))[2:]) <= 8:
+                disp_size = 8
+            else:
+                disp_size = 32
+        if n:
+            self.displacement = '-' + self.displacement
         self.displacement, junk = self.analyze_data(self.displacement, disp_size)
         return disp_size
 
