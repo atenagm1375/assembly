@@ -131,6 +131,8 @@ class Instruction:
                         self.displacement = el
                     else:
                         raise InstructionError(bad_expression_msg)
+                if self.arg_types[1] == 'd':
+                    self.reg = opcode[self.operation]['op']
 
                 mem_size = get_register_size(self.index if self.index != '' else self.base)
                 if self.index == 'si' or self.index == 'di':
@@ -211,7 +213,7 @@ class Instruction:
             if len(val) % 2 != 0:
                 val = '0' + val
             if isneg:
-                val = '-'
+                val = '-' + str(int(val, 16))
                 val = tobin(int(val), num_of_bits)
             else:
                 val = bin(int(val, 16))[2:].zfill(num_of_bits)
