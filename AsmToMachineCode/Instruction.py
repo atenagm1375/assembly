@@ -159,6 +159,7 @@ class Instruction:
                 self.mod = get_mod(disp_size, True)
                 if disp_size == 0 and self.index == '' and self.base == '' and self.rm == '110':
                     self.displacement = '00000000'
+                    self.mod = '01'
                 if disp_size > mem_size:
                     self.displacement = self.displacement[:mem_size]
 
