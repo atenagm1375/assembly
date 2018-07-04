@@ -59,13 +59,17 @@ def get_reg_rm(arch, index, base=None):
         if (index is None or index_size == size[1]) and base_size == size[1]:
             return rmx86[(index, base)]
         if base_size == 0 and index_size == size[2]:
-            return registersx86[index]
+            return registersx64[index][1:]
+        if index_size == 0 and base_size == size[2]:
+            return registersx64[base][1:]
         if base_size == size[2] and index_size == size[2]:
             return '100'
     if arch == size[3]:
         if base_size == 0 and index_size > size[1]:
-            return registersx86[index]
-        if base_size == size[2] and index_size == size[2]:
+            return registersx64[index][1:]
+        if index_size == 0 and base_size > size[1]:
+            return registersx64[base][1:]
+        if base_size >= size[2] and index_size >= size[2]:
             return '100'
 
 
