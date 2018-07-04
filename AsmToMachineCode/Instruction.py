@@ -147,6 +147,9 @@ class Instruction:
                         rex_b = registersx64[self.base][0]
                     self.index, self.base = registersx64[self.index][1:], registersx64[self.base][1:]
                     if self.scale == '':
+                        self.index, self.base = self.base, self.index
+                        if self.mod == size[3]:
+                            rex_b, rex_x = rex_x, rex_b
                         self.scale = '00'
                 else:
                     if self.mode == size[3]:
@@ -157,7 +160,8 @@ class Instruction:
                 if self.displacement != '':
                     disp_size = self.get_displacement()
                 self.mod = get_mod(disp_size, True)
-                if disp_size == 0 and self.index == '' and self.base == '' and self.rm == '110':
+                if disp_size == 0 and self.index == '' and self.base == '' and ((self.rm == '110' and mem_size == size[1])\
+                        or (self.rm == '101' and mem_size == size[2])):
                     self.displacement = '00000000'
                     self.mod = '01'
                 if disp_size > mem_size:
@@ -230,8 +234,6 @@ class Instruction:
         if self.displacement[:2] == '0x':
             if len(bin(int(self.displacement[2:], 16))[2:]) <= 8:
                 disp_size = 8
-            elif len(bin(int(self.displacement[2:], 16))[2:]) <= 16:
-                disp_size = 16
             else:
                 disp_size = 32
         self.displacement, junk = self.analyze_data(self.displacement, disp_size)
