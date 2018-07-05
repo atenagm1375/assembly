@@ -9,7 +9,7 @@
     mov al, %1
     cmp al, [inp]
     jne end_evaluate_char
-    mov ax, 2
+    mov ax, opentered
     bts [calc_flag], ax
     call push_number
     call evaluate_operator
@@ -30,17 +30,22 @@ section .data
     ECHO equ 1<<3
     sys_read equ 3
 
+    isfloat equ 1
+    opentered equ 2
+    numentered equ 3
+
     max_size equ 15
     calc_flag db 0
     num_len db 0
     dot_pos db 0
     num dq 0
+    ten dq 10
 
 ;******************************************************************************
 
 section .bss
     op_stack resb max_size      ; operators' stack
-    num_stack resb max_size     ; operands' stack
+    num_stack resq max_size     ; operands' stack
     inp resb 1                  ; holds input char
 
 ;******************************************************************************
@@ -63,6 +68,9 @@ exit:
 ;------------------------------------------------------------------------------
 
 evaluate_expression:
+    mov rsi, num_stack
+    mov rdi, op_stack
+    mov r10, 10
     read_loop:
         call read_char
         call evaluate_char
@@ -119,7 +127,7 @@ evaluate_char:
     jne end_evaluate_char
     mov al, [num_len]
     mov [dot_pos], al
-    mov ax, 1
+    mov ax, isfloat
     bts [calc_flag], ax
     jmp end_evaluate_char
 
@@ -141,7 +149,7 @@ evaluate_char:
     sub bl, al
     push rbx
     call atoi
-    mov ax, 3
+    mov ax, numentered
     bts [calc_flag], ax
     jmp end_evaluate_char
 
@@ -158,6 +166,42 @@ evaluate_char:
 ;..............................................................................
 
 push_number:
+    ; save registers' contents
+    push rax
+    push rbx
+    push rcx
+
+    mov bx, numentered
+    btr [calc_flag], bx
+
+    mov bx, isfloat
+    bt [calc_flag], bx
+    jc push_float
+    mov rax, [num]
+    mov [rsi], rax
+    jmp end_pushing
+
+    push_float:
+    xor rcx, rcx
+    mov cl, [num_len]
+    sub cl, [dot_pos]
+    fild qword[ten]
+    fld qword[num]
+    convert_to_float_loop:
+        fdiv st1
+        loop convert_to_float_loop
+    fst qword[rsi]
+
+    end_pushing:
+    add rsi, 8
+    mov qword[num], 0
+    mov byte[dot_pos], 0
+    mov byte[num_len], 0
+    ; retrieve registers' contents
+    pop rcx
+    pop rbx
+    pop rax
+    ret
 
 ;..............................................................................
 
@@ -169,19 +213,16 @@ atoi:
     enter 0, 0
     ; save registers' contents
     push rax
-    push rcx
     push rdx
 
     mov rax, [num]
-    mov rcx, 10
-    mul rcx
+    mul r10
     add rax, [ebp + 8]
     mov [num], rax
     inc byte [num_len]
 
     ; retrieve contents of registers
     pop rdx
-    pop rcx
     pop rax
     leave
     ret 8
