@@ -5,6 +5,17 @@
 ;******************************************************************************
 ;******************************************************************************
 
+%macro check_op 1
+    mov al, %1
+    cmp al, [inp]
+    jne end_evaluate_char
+    mov ax, 2
+    bts [calc_flag], ax
+    call push_number
+    call evaluate_operator
+    jmp end_evaluate_char
+%endmacro
+
 section .data
     msg db "Enter a valid operation or q to exit:", 10
     msg_len equ $-msg
@@ -21,13 +32,16 @@ section .data
 
     max_size equ 15
     calc_flag db 0
+    num_len db 0
+    dot_pos db 0
 
 ;******************************************************************************
 
 section .bss
-    num resq max_size       ; keeps a number
-    op resb max_size        ; keeps operator
-    inp resb 1              ; holds input char
+    num resq max_size           ; keeps a number
+    op_stack resb max_size      ; operators' stack
+    num_stack resb max_size     ; operands' stack
+    inp resb 1                  ; holds input char
 
 ;******************************************************************************
 
@@ -64,6 +78,7 @@ read_char:
     push rdx
 
     ; sys_read
+    mov byte [inp], 0
     mov rax, sys_read
     mov rbx, stdin
     mov rcx, inp
@@ -82,15 +97,87 @@ read_char:
 evaluate_char:
     ; save contents of registers
     push rax
+    push rbx
 
     ; check quit command
     mov al, byte 'q'
     cmp al, [inp]
     je exit
 
+    ;check end of line
+    mov al, byte '='
+    cmp al, [inp]
+    jne end_evaluate_char
+    call push_number
+    call calculate
+    call print_result
+    jmp end_evaluate_char
+
+    ; check for .
+    mov al, byte '.'
+    cmp al, [inp]
+    jne end_evaluate_char
+    mov al, [num_len]
+    mov [dot_pos], al
+    mov ax, 1
+    bts [calc_flag], ax
+    jmp end_evaluate_char
+
+    ; check operators
+    check_op byte '+'
+    ; check_op byte '-'
+    ; check_op byte '*'
+    ; check_op byte '/'
+
+    ; check digit
+    mov al, byte '9'
+    cmp al, [inp]
+    jg char_error
+    mov al, byte '0'
+    cmp al, [inp]
+    jl char_error
+    xor rbx, rbx
+    mov bl, [inp]
+    sub bl, al
+    push bx
+    call atoi
+    mov ax, 3
+    bts [calc_flag], ax
+    jmp end_evaluate_char
+
+    ; invalid expression
+    char_error:
+    call invalid_exp_err
+
+    end_evaluate_char:
     ; retrieve contents of registers
+    pop rbx
     pop rax
     ret
+
+;..............................................................................
+
+push_number:
+
+;..............................................................................
+
+evaluate_operator:
+
+;..............................................................................
+
+atoi:
+
+;..............................................................................
+
+calculate:
+
+;..............................................................................
+
+print_result:
+
+;..............................................................................
+
+invalid_exp_err:
 
 ;------------------------------------------------------------------------------
 
