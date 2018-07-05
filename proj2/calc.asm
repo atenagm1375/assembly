@@ -5,6 +5,31 @@
 ;******************************************************************************
 ;******************************************************************************
 
+%macro hiprec 2
+    push rax
+    mov al, %1
+    cmp al, byte '/'
+    je check_second
+    cmp al, byte '*'
+    je check_second
+    jmp end_hiprec
+
+    check_second:
+    mov al, %2
+    cmp al, byte '+'
+    je is_higher
+    cmp al, byte '-'
+    je is_higher
+    jmp end_hiprec
+
+    is_higher:
+    mov ax, higherprec
+    bts [calc_flag], ax
+
+    end_hiprec:
+    pop rax
+%endmacro
+
 section .data
     msg db "Enter a valid operation or q to exit:", 10
     msg_len equ $-msg
@@ -25,6 +50,8 @@ section .data
     opentered equ 2
     numentered equ 3
     erroccured equ 4
+    higherprec equ 5
+    isneg equ 6
 
     max_size equ 15
     calc_flag db 0
@@ -140,8 +167,6 @@ evaluate_char:
     mov al, byte '+'
     cmp al, [inp]
     jne minus
-    mov ax, opentered
-    bts [calc_flag], ax
     call push_number
     call evaluate_operator
     jmp end_evaluate_char
@@ -150,8 +175,6 @@ evaluate_char:
     mov al, byte '-'
     cmp al, [inp]
     jne star
-    mov ax, opentered
-    bts [calc_flag], ax
     call push_number
     call evaluate_operator
     jmp end_evaluate_char
@@ -160,8 +183,6 @@ evaluate_char:
     mov al, byte '*'
     cmp al, [inp]
     jne divide
-    mov ax, opentered
-    bts [calc_flag], ax
     call push_number
     call evaluate_operator
     jmp end_evaluate_char
@@ -170,9 +191,8 @@ evaluate_char:
     mov al, byte '/'
     cmp al, [inp]
     jne digit
-    mov ax, opentered
-    bts [calc_flag], ax
     call push_number
+    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -191,6 +211,8 @@ evaluate_char:
     call atoi
     mov ax, numentered
     bts [calc_flag], ax
+    mov ax, opentered
+    btr [calc_flag], ax
     jmp end_evaluate_char
 
     ; invalid expression
@@ -214,6 +236,12 @@ push_number:
     mov bx, numentered
     btr [calc_flag], bx
 
+    mov bx, isneg
+    bt [calc_flag], bx
+    jnc continue
+    neg qword[num]
+
+    continue:
     mov bx, isfloat
     bt [calc_flag], bx
     jc push_float
@@ -246,7 +274,43 @@ push_number:
 ;..............................................................................
 
 evaluate_operator:
-    ret
+    enter 8, 0
+    ; save registers' contents
+    mov [rbp - 8], rax
+
+    mov ax, opentered
+    bt [calc_flag], ax
+    jnc check_prec
+    mov al, '-'
+    cmp [rbp + 16], al
+    jne operator_error
+    cmp [rdi], al
+    jne operator_error
+    mov ax, isneg
+    btc [calc_flag], ax
+    jmp end_evaluate_operator
+
+    check_prec:
+    hiprec byte[rbp + 16], byte[rdi]
+    jc push_operator
+
+    push_operator:
+    mov al, [rbp + 16]
+    mov [rdi], al
+    inc rdi
+    jmp end_evaluate_operator
+
+    operator_error:
+    call invalid_exp_err
+
+    end_evaluate_operator:
+    mov ax, opentered
+    bts [calc_flag], ax
+    ; retrieve registers' contents
+    mov rax, [rbp - 8]
+
+    leave
+    ret 8
 
 ;..............................................................................
 
