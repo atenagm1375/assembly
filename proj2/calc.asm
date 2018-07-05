@@ -5,17 +5,6 @@
 ;******************************************************************************
 ;******************************************************************************
 
-%macro check_op 1
-    mov al, %1
-    cmp al, [inp]
-    jne end_evaluate_char
-    mov ax, opentered
-    bts [calc_flag], ax
-    call push_number
-    call evaluate_operator
-    jmp end_evaluate_char
-%endmacro
-
 section .data
     msg db "Enter a valid operation or q to exit:", 10
     msg_len equ $-msg
@@ -29,10 +18,13 @@ section .data
     ICANON equ 1<<1
     ECHO equ 1<<3
     sys_read equ 3
+    sys_write equ 4
+    stdout equ 1
 
     isfloat equ 1
     opentered equ 2
     numentered equ 3
+    erroccured equ 4
 
     max_size equ 15
     calc_flag db 0
@@ -74,7 +66,18 @@ evaluate_expression:
     read_loop:
         call read_char
         call evaluate_char
-        jmp read_loop
+        mov bx, erroccured
+        bt [calc_flag], bx
+        jnc read_loop
+    xor rax, rax
+    xor rbx, rbx
+    xor rcx, rcx
+    xor rdx, rdx
+    mov qword[num], 0
+    mov byte[calc_flag], 0
+    mov byte[num_len], 0
+    mov byte[dot_pos], 0
+    jmp evaluate_expression
 
 ;..............................................................................
 
@@ -90,7 +93,7 @@ read_char:
     mov rax, sys_read
     mov rbx, stdin
     mov rcx, inp
-    mov edx, 1
+    mov edx, 2
     int 80h
 
     ; retrieve contents of registers
@@ -115,16 +118,17 @@ evaluate_char:
     ;check end of line
     mov al, byte '='
     cmp al, [inp]
-    jne end_evaluate_char
+    jne dot
     call push_number
     call calculate
     call print_result
     jmp end_evaluate_char
 
     ; check for .
+    dot:
     mov al, byte '.'
     cmp al, [inp]
-    jne end_evaluate_char
+    jne plus
     mov al, [num_len]
     mov [dot_pos], al
     mov ax, isfloat
@@ -132,18 +136,54 @@ evaluate_char:
     jmp end_evaluate_char
 
     ; check operators
-    check_op byte '+'
-    ; check_op byte '-'
-    ; check_op byte '*'
-    ; check_op byte '/'
+    plus:
+    mov al, byte '+'
+    cmp al, [inp]
+    jne minus
+    mov ax, opentered
+    bts [calc_flag], ax
+    call push_number
+    call evaluate_operator
+    jmp end_evaluate_char
+
+    minus:
+    mov al, byte '-'
+    cmp al, [inp]
+    jne star
+    mov ax, opentered
+    bts [calc_flag], ax
+    call push_number
+    call evaluate_operator
+    jmp end_evaluate_char
+
+    star:
+    mov al, byte '*'
+    cmp al, [inp]
+    jne divide
+    mov ax, opentered
+    bts [calc_flag], ax
+    call push_number
+    call evaluate_operator
+    jmp end_evaluate_char
+
+    divide:
+    mov al, byte '/'
+    cmp al, [inp]
+    jne digit
+    mov ax, opentered
+    bts [calc_flag], ax
+    call push_number
+    call evaluate_operator
+    jmp end_evaluate_char
 
     ; check digit
+    digit:
     mov al, byte '9'
     cmp al, [inp]
-    jg char_error
+    jl char_error
     mov al, byte '0'
     cmp al, [inp]
-    jl char_error
+    jg char_error
     xor rbx, rbx
     mov bl, [inp]
     sub bl, al
@@ -206,38 +246,62 @@ push_number:
 ;..............................................................................
 
 evaluate_operator:
+    ret
 
 ;..............................................................................
 
 atoi:
-    enter 0, 0
+    enter 16, 0
     ; save registers' contents
-    push rax
-    push rdx
+    mov [rbp - 8], rax
+    mov [rbp - 16], rdx
 
     mov rax, [num]
     mul r10
-    add rax, [ebp + 8]
+    add rax, [rbp + 16]
     mov [num], rax
     inc byte [num_len]
 
     ; retrieve contents of registers
-    pop rdx
-    pop rax
+    mov rdx, [rbp - 16]
+    mov rax, [rbp - 8]
     leave
     ret 8
 
 ;..............................................................................
 
 calculate:
+    ret
 
 ;..............................................................................
 
 print_result:
+    ret
 
 ;..............................................................................
 
 invalid_exp_err:
+    ; save registers' contents
+    push rax
+    push rbx
+    push rcx
+    push rdx
+
+    mov rax, sys_write
+    mov rbx, stdout
+    mov rcx, errormsg
+    mov rdx, error_len
+    int 80h
+
+    mov bx, erroccured
+    bts [calc_flag], bx
+
+    ; retrieve registers' contents
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
 
 ;------------------------------------------------------------------------------
 
