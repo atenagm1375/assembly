@@ -34,11 +34,11 @@ section .data
     calc_flag db 0
     num_len db 0
     dot_pos db 0
+    num dq 0
 
 ;******************************************************************************
 
 section .bss
-    num resq max_size           ; keeps a number
     op_stack resb max_size      ; operators' stack
     num_stack resb max_size     ; operands' stack
     inp resb 1                  ; holds input char
@@ -139,7 +139,7 @@ evaluate_char:
     xor rbx, rbx
     mov bl, [inp]
     sub bl, al
-    push bx
+    push rbx
     call atoi
     mov ax, 3
     bts [calc_flag], ax
@@ -166,6 +166,25 @@ evaluate_operator:
 ;..............................................................................
 
 atoi:
+    enter 0, 0
+    ; save registers' contents
+    push rax
+    push rcx
+    push rdx
+
+    mov rax, [num]
+    mov rcx, 10
+    mul rcx
+    add rax, [ebp + 8]
+    mov [num], rax
+    inc byte [num_len]
+
+    ; retrieve contents of registers
+    pop rdx
+    pop rcx
+    pop rax
+    leave
+    ret 8
 
 ;..............................................................................
 
