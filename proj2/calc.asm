@@ -90,7 +90,6 @@ exit:
 evaluate_expression:
     mov rsi, num_stack
     mov rdi, op_stack
-    mov r10, 10
     read_loop:
         call read_char
         call evaluate_char
@@ -278,7 +277,7 @@ push_number:
     mov cl, [num_len]
     sub cl, [dot_pos]
     fild qword[ten]
-    fld qword[num]
+    fild qword[num]
     convert_to_float_loop:
         fdiv st1
         loop convert_to_float_loop
@@ -355,11 +354,12 @@ atoi:
     mov [rbp - 16], rdx
 
     mov rax, [num]
-    mul r10
+    mul qword[ten]
     add rax, [rbp + 16]
     mov [num], rax
     inc byte [num_len]
 
+    end_atoi:
     ; retrieve contents of registers
     mov rdx, [rbp - 16]
     mov rax, [rbp - 8]
