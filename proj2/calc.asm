@@ -24,6 +24,7 @@
 
     is_higher:
     mov ax, higherprec
+    clc
     bts [calc_flag], ax
 
     end_hiprec:
@@ -94,17 +95,31 @@ evaluate_expression:
         call read_char
         call evaluate_char
         mov bx, erroccured
+        clc
         bt [calc_flag], bx
         jnc read_loop
     xor rax, rax
     xor rbx, rbx
-    xor rcx, rcx
     xor rdx, rdx
     mov qword[num], 0
     mov byte[calc_flag], 0
     mov byte[num_len], 0
     mov byte[dot_pos], 0
+    mov rdi, op_stack
+    mov rcx, max_size
+    clear_op_stack:
+        mov [rdi], bl
+        inc rdi
+        loop clear_op_stack
+    mov rsi, num_stack
+    mov rcx, max_size
+    clear_num_stack:
+        mov [rsi], rbx
+        add rsi, 8
+        loop clear_num_stack
+    xor rcx, rcx
     jmp evaluate_expression
+    ret
 
 ;..............................................................................
 
@@ -159,6 +174,7 @@ evaluate_char:
     mov al, [num_len]
     mov [dot_pos], al
     mov ax, isfloat
+    clc
     bts [calc_flag], ax
     jmp end_evaluate_char
 
@@ -168,6 +184,7 @@ evaluate_char:
     cmp al, [inp]
     jne minus
     call push_number
+    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -176,6 +193,7 @@ evaluate_char:
     cmp al, [inp]
     jne star
     call push_number
+    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -184,6 +202,7 @@ evaluate_char:
     cmp al, [inp]
     jne divide
     call push_number
+    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -210,8 +229,10 @@ evaluate_char:
     push rbx
     call atoi
     mov ax, numentered
+    clc
     bts [calc_flag], ax
     mov ax, opentered
+    clc
     btr [calc_flag], ax
     jmp end_evaluate_char
 
@@ -234,15 +255,18 @@ push_number:
     push rcx
 
     mov bx, numentered
+    clc
     btr [calc_flag], bx
 
     mov bx, isneg
+    clc
     bt [calc_flag], bx
     jnc continue
     neg qword[num]
 
     continue:
     mov bx, isfloat
+    clc
     bt [calc_flag], bx
     jc push_float
     mov rax, [num]
@@ -279,6 +303,7 @@ evaluate_operator:
     mov [rbp - 8], rax
 
     mov ax, opentered
+    clc
     bt [calc_flag], ax
     jnc check_prec
     mov al, '-'
@@ -287,14 +312,22 @@ evaluate_operator:
     cmp [rdi], al
     jne operator_error
     mov ax, isneg
+    clc
     btc [calc_flag], ax
     jmp end_evaluate_operator
 
     check_prec:
+    clc
+    cmp rdi, op_stack
+    je push_operator
     hiprec byte[rbp + 16], byte[rdi]
     jc push_operator
+    call calculate
 
     push_operator:
+    mov ax, higherprec
+    clc
+    btr [calc_flag], ax
     mov al, [rbp + 16]
     mov [rdi], al
     inc rdi
@@ -305,6 +338,7 @@ evaluate_operator:
 
     end_evaluate_operator:
     mov ax, opentered
+    clc
     bts [calc_flag], ax
     ; retrieve registers' contents
     mov rax, [rbp - 8]
@@ -358,6 +392,7 @@ invalid_exp_err:
     int 80h
 
     mov bx, erroccured
+    clc
     bts [calc_flag], bx
 
     ; retrieve registers' contents
