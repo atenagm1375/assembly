@@ -62,6 +62,8 @@ section .data
     ten dq 10
     oldcontrol dw 0
     newcontrol dw 0
+    fsig dq 0.0
+    fexp dq 0.0
 
 ;******************************************************************************
 
@@ -69,6 +71,7 @@ section .bss
     op_stack resb max_size      ; operators' stack
     num_stack resq max_size     ; operands' stack
     inp resb 1                  ; holds input char
+    output resb max_size        ; saves output
 
 ;******************************************************************************
 
@@ -281,14 +284,21 @@ push_number:
     fild qword[ten]
     fild qword[num]
     convert_to_float_loop:
+        cmp rcx, 0
+        je end_loop
         fdiv st1
-        loop convert_to_float_loop
+        dec rcx
+        jmp convert_to_float_loop
+        end_loop:
     fstp qword[rsi]
 
     add rsi, 8
     mov qword[num], 0
     mov byte[dot_pos], 0
     mov byte[num_len], 0
+    mov ax, isfloat
+    btr [calc_flag], ax
+    clc
 
     end_push_number:
     ; retrieve registers' contents
@@ -374,6 +384,9 @@ atoi:
 calculate:
     ; save registers' contents
     push rax
+    push rbx
+    push rcx
+    push rdx
 
     fstcw word[oldcontrol]
     mov ax, [oldcontrol]
@@ -412,7 +425,7 @@ calculate:
     jmp end_calculate
 
     do_subtraction:
-    fsubr st1
+    fsub st1
     jmp end_calculate
 
     do_multiplication:
@@ -420,19 +433,138 @@ calculate:
     jmp end_calculate
 
     do_division:
-    fdivr st1
+    fdiv st1
+    fstsw ax
+    bt ax, 2
+    jnc end_calculate
+    call goto_nextline
+    mov rax, sys_write
+    mov rbx, stdout
+    mov rcx, divide_by_zero
+    mov rdx, div_len
+    int 80h
+    jmp exit
 
     end_calculate:
     fstp qword[rsi]
+    add rsi, 8
     fldcw word[oldcontrol]
 
     ; retrieve registers' contents
+    pop rdx
+    pop rcx
+    pop rbx
     pop rax
     ret
 
 ;..............................................................................
 
 print_result:
+    ; save registers' contents
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push r8
+
+    mov r8, output
+    sub rsi, 8
+    fld qword[rsi]
+    fxam
+    fstsw ax
+    bt ax, 9
+    jnc generate_output
+    mov al, byte '-'
+    mov [r8], al
+    inc r8
+    fchs
+
+    generate_output:
+    call extract_exp
+    fld qword[fexp]
+    fistp qword[fexp]
+    fld qword[ten]
+    fld qword[rsi]
+    mov rcx, [fexp]
+    ftoi_loop:
+        cmp rcx, 0
+        je end_ftoi_loop
+        fmul st1
+        dec rcx
+        jmp ftoi_loop
+        end_ftoi_loop:
+    fistp qword[fsig]
+
+    xor rcx, rcx
+    mov rax, qword[fsig]
+    itoa_loop:
+        xor rbx, rbx
+        cmp [fexp], rbx
+        je convert_number
+        cmp rcx, [fexp]
+        jne convert_number
+        mov bl, byte '.'
+        mov [r8], bl
+        inc r8
+        inc rcx
+        convert_number:
+        xor rdx, rdx
+        div qword[ten]
+        add dl, byte '0'
+        mov [r8], dl
+        inc r8
+        inc rcx
+        cmp rax, 0
+        jne itoa_loop
+
+    call goto_nextline
+
+    mov rdx, rcx
+    mov rax, sys_write
+    mov rbx, stdout
+    mov rcx, output
+    int 80h
+
+    clear_output:
+    mov rcx, rdx
+    xor rdx, rdx
+    mov r8, output
+    clear_output_loop:
+        mov [r8], dl
+        loop clear_output_loop
+
+    add rsi, 8
+    ; retrieve registers' contents
+    pop r8
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
+;..............................................................................
+
+extract_exp:
+    fld st0
+    fldlg2
+    fxch st1            ; st2 = fvar, st1 = log_10(2), st0 = fvar
+    fyl2x               ; log_10(fvar) = log_10(2) * log_2(fvar)
+    frndint             ; truncate log_10(fvar)
+    fst qword[fexp]
+    ; fsig = fvar / 10^(fexp)
+    fldl2t              ; st2 = fvar, st1 = fexp, st0 = log_2(10)
+    fmulp               ; m = log_2(10) * fexp
+    fld st0
+    frndint             ; integral part of m
+    fxch st1            ; st2 = fvar, st1 = integer, st0 = m
+    fsub st0, st1       ; fractional part of m
+    f2xm1
+    fld1
+    faddp               ; 2^(fraction)
+    fscale              ; 10^fexp = 2^(integer) * 2^(fraction)
+    fstp st1            ; st1 = fvar, st0 = 10^fexp
+    fdivp               ; fvar / 10^fexp
+    fstp qword[fsig]
     ret
 
 ;..............................................................................
@@ -444,6 +576,8 @@ invalid_exp_err:
     push rcx
     push rdx
 
+    call goto_nextline
+
     mov rax, sys_write
     mov rbx, stdout
     mov rcx, errormsg
@@ -453,6 +587,28 @@ invalid_exp_err:
     mov bx, erroccured
     clc
     bts [calc_flag], bx
+
+    ; retrieve registers' contents
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
+;..............................................................................
+
+goto_nextline:
+    ; save registers' contents
+    push rax
+    push rbx
+    push rcx
+    push rdx
+
+    mov rax, sys_write
+    mov rbx, stdout
+    mov rcx, 10
+    mov rdx, 1
+    int 80h
 
     ; retrieve registers' contents
     pop rdx
