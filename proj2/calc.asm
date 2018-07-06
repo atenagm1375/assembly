@@ -256,6 +256,7 @@ push_number:
     mov bx, numentered
     clc
     btr [calc_flag], bx
+    jnc end_push_number
 
     mov bx, isneg
     clc
@@ -268,9 +269,8 @@ push_number:
     clc
     bt [calc_flag], bx
     jc push_float
-    mov rax, [num]
-    mov [rsi], rax
-    jmp end_pushing
+    mov al, [num_len]
+    mov [dot_pos], al
 
     push_float:
     xor rcx, rcx
@@ -283,11 +283,12 @@ push_number:
         loop convert_to_float_loop
     fst qword[rsi]
 
-    end_pushing:
     add rsi, 8
     mov qword[num], 0
     mov byte[dot_pos], 0
     mov byte[num_len], 0
+    
+    end_push_number:
     ; retrieve registers' contents
     pop rcx
     pop rbx
