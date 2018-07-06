@@ -60,6 +60,8 @@ section .data
     dot_pos db 0
     num dq 0
     ten dq 10
+    oldcontrol dw 0
+    newcontrol dw 0
 
 ;******************************************************************************
 
@@ -281,13 +283,13 @@ push_number:
     convert_to_float_loop:
         fdiv st1
         loop convert_to_float_loop
-    fst qword[rsi]
+    fstp qword[rsi]
 
     add rsi, 8
     mov qword[num], 0
     mov byte[dot_pos], 0
     mov byte[num_len], 0
-    
+
     end_push_number:
     ; retrieve registers' contents
     pop rcx
@@ -370,6 +372,62 @@ atoi:
 ;..............................................................................
 
 calculate:
+    ; save registers' contents
+    push rax
+
+    fstcw word[oldcontrol]
+    mov ax, [oldcontrol]
+    mov [newcontrol], ax
+    mov ax, 11
+    btr word[newcontrol], ax
+    mov ax, 10
+    btr word[newcontrol], ax
+    clc
+    fldcw word[newcontrol]
+
+    sub rsi, 8
+    fld qword[rsi]
+    fldz
+    fstp qword[rsi]
+    sub rsi, 8
+    fld qword[rsi]
+    fldz
+    fstp qword[rsi]
+
+    sub rdi, 8
+    mov al, [rdi]
+    mov byte[rdi], 0
+
+    cmp al, byte '+'
+    je do_addition
+    cmp al, byte '-'
+    je do_subtraction
+    cmp al, byte '*'
+    je do_multiplication
+    cmp al, byte '/'
+    je do_division
+
+    do_addition:
+    fadd st1
+    jmp end_calculate
+
+    do_subtraction:
+    fsubr st1
+    jmp end_calculate
+
+    do_multiplication:
+    fmul st1
+    jmp end_calculate
+
+    do_division:
+    fdivr st1
+
+    end_calculate:
+    fstp qword[rsi]
+    fldcw word[oldcontrol]
+
+    ; retrieve registers' contents
+    pop rax
     ret
 
 ;..............................................................................
