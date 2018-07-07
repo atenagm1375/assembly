@@ -171,6 +171,7 @@ evaluate_char:
     call push_number
     call calculate
     call print_result
+    clc
     jmp end_evaluate_char
 
     ; check for .
@@ -191,7 +192,6 @@ evaluate_char:
     cmp al, [inp]
     jne minus
     call push_number
-    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -200,7 +200,6 @@ evaluate_char:
     cmp al, [inp]
     jne star
     call push_number
-    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -209,7 +208,6 @@ evaluate_char:
     cmp al, [inp]
     jne divide
     call push_number
-    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -218,7 +216,6 @@ evaluate_char:
     cmp al, [inp]
     jne digit
     call push_number
-    push qword[inp]
     call evaluate_operator
     jmp end_evaluate_char
 
@@ -269,14 +266,14 @@ push_number:
 
     mov bx, isneg
     clc
-    bt [calc_flag], bx
+    btr [calc_flag], bx
     jnc continue_push
     neg qword[num]
 
     continue_push:
     mov bx, isfloat
     clc
-    bt [calc_flag], bx
+    btr [calc_flag], bx
     jc push_float
     mov al, [num_len]
     mov [dot_pos], al
@@ -289,8 +286,10 @@ push_number:
     jge continue_push_float
     mov [max_prec], cl
     continue_push_float:
+    ffree st0
     fild qword[ten]
     fild qword[num]
+    mov rax, [num]
     convert_to_float_loop:
         cmp rcx, 0
         je end_loop
@@ -299,6 +298,7 @@ push_number:
         jmp convert_to_float_loop
         end_loop:
     fstp qword[rsi]
+    ffree st0
 
     add rsi, 8
     mov qword[num], 0
@@ -318,25 +318,27 @@ push_number:
 ;..............................................................................
 
 evaluate_operator:
-    enter 8, 0
     ; save registers' contents
-    mov [rbp - 8], rax
+    push rax
 
     mov ax, opentered
     clc
-    bt [calc_flag], ax
+    bts [calc_flag], ax
     jnc check_prec
-    mov al, '-'
-    cmp [rbp + 16], al
+    xor rax, rax
+    mov al, [inp]
+    mov al, byte '-'
+    cmp [inp], al
     jne operator_error
-    cmp [rdi], al
-    jne operator_error
+    ; cmp [rdi], al
+    ; jne operator_error
     mov ax, isneg
     clc
     btc [calc_flag], ax
     jmp end_evaluate_operator
 
     check_prec:
+    dec rdi
     clc
     mov al, byte '-'
     cmp [rdi], al
@@ -344,27 +346,33 @@ evaluate_operator:
     continue:
     cmp rdi, op_stack
     je push_operator
-    hiprec byte[rbp + 16], byte[rdi]
-    jc push_operator
-    call calculate
-
-    push_operator:
+    hiprec byte[inp], byte[rdi]
     mov ax, higherprec
     clc
     btr [calc_flag], ax
-    mov al, [rbp + 16]
+    jc push_operator
+    clc
+    inc rdi
+    call calculate
+    dec rdi
+
+    push_operator:
+    inc rdi
+    mov al, [inp]
     mov [rdi], al
+    mov al, [rdi]
     inc rdi
     jmp end_evaluate_operator
 
     first_minus:
+    inc rdi
     mov ax, numentered
     bt [calc_flag], ax
     jc continue
     cmp rdi, op_stack
     jne continue
     mov ax, isneg
-    bts [calc_flag], ax
+    btc [calc_flag], ax
     clc
     jmp end_evaluate_operator
 
@@ -372,15 +380,10 @@ evaluate_operator:
     call invalid_exp_err
 
     end_evaluate_operator:
-    mov ax, opentered
-    clc
-    bts [calc_flag], ax
     clc
     ; retrieve registers' contents
-    mov rax, [rbp - 8]
-
-    leave
-    ret 8
+    pop rax
+    ret
 
 ;..............................................................................
 
@@ -413,7 +416,7 @@ calculate:
     push rdx
 
     calculate_loop:
-        cmp rdi, output
+        cmp rdi, op_stack
         je end_calculate_loop
         sub rsi, 8
         fld qword[rsi]
@@ -464,7 +467,9 @@ calculate:
 
         end_calculate:
         fstp qword[rsi]
+        ffree st0
         add rsi, 8
+        jmp calculate_loop
         end_calculate_loop:
 
     ; retrieve registers' contents
@@ -496,25 +501,30 @@ print_result:
     fldcw word[newcontrol]
 
     mov r8, output
+    mov r9, output
     sub rsi, 8
     fld qword[rsi]
     fxam
     fstsw ax
+    clc
     bt ax, 9
     jnc generate_output
+    clc
     mov al, byte '-'
     mov [r8], al
     inc r8
     fchs
+    inc r9
 
     generate_output:
     ; call extract_exp
     ; fld qword[fexp]
     ; fistp qword[fexp]
+    clc
     mov al, [max_prec]
     mov [fexp], al
     fild qword[ten]
-    fld qword[rsi]
+    fxch st1
     mov rcx, [fexp]
     ftoi_loop:
         cmp rcx, 0
@@ -524,6 +534,7 @@ print_result:
         jmp ftoi_loop
         end_ftoi_loop:
     fistp qword[fsig]
+    ffree st0
 
     xor rcx, rcx
     mov rax, qword[fsig]
@@ -549,8 +560,6 @@ print_result:
 
     fldcw word[oldcontrol]
 
-    mov r9, output
-    dec r8
     mirror_while:
         cmp r9, r8
         jge end_mirror_while
@@ -574,12 +583,13 @@ print_result:
     int 80h
 
     clear_output:
-    mov rcx, [num_len]
+    mov rcx, max_size
     xor rdx, rdx
     mov [num_len], rdx
     mov r8, output
     clear_output_loop:
         mov [r8], dl
+        inc r8
         loop clear_output_loop
 
     add rsi, 8
