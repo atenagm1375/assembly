@@ -38,6 +38,8 @@ section .data
     error_len equ $-errormsg
     divide_by_zero db "divide by zero", 10
     div_len equ $-divide_by_zero
+    new_line db "", 10
+    new_line_len equ $-new_line
 
     termios times 36 db 0
     stdin equ 0
@@ -58,6 +60,7 @@ section .data
     calc_flag db 0
     num_len db 0
     dot_pos db 0
+    max_prec db 0
     num dq 0
     ten dq 10
     oldcontrol dw 0
@@ -238,6 +241,7 @@ evaluate_char:
     mov ax, opentered
     clc
     btr [calc_flag], ax
+    clc
     jmp end_evaluate_char
 
     ; invalid expression
@@ -266,10 +270,10 @@ push_number:
     mov bx, isneg
     clc
     bt [calc_flag], bx
-    jnc continue
+    jnc continue_push
     neg qword[num]
 
-    continue:
+    continue_push:
     mov bx, isfloat
     clc
     bt [calc_flag], bx
@@ -281,6 +285,10 @@ push_number:
     xor rcx, rcx
     mov cl, [num_len]
     sub cl, [dot_pos]
+    cmp [max_prec], cl
+    jge continue_push_float
+    mov [max_prec], cl
+    continue_push_float:
     fild qword[ten]
     fild qword[num]
     convert_to_float_loop:
@@ -330,6 +338,10 @@ evaluate_operator:
 
     check_prec:
     clc
+    mov al, byte '-'
+    cmp [rdi], al
+    je first_minus
+    continue:
     cmp rdi, op_stack
     je push_operator
     hiprec byte[rbp + 16], byte[rdi]
@@ -345,6 +357,17 @@ evaluate_operator:
     inc rdi
     jmp end_evaluate_operator
 
+    first_minus:
+    mov ax, numentered
+    bt [calc_flag], ax
+    jc continue
+    cmp rdi, op_stack
+    jne continue
+    mov ax, isneg
+    bts [calc_flag], ax
+    clc
+    jmp end_evaluate_operator
+
     operator_error:
     call invalid_exp_err
 
@@ -352,6 +375,7 @@ evaluate_operator:
     mov ax, opentered
     clc
     bts [calc_flag], ax
+    clc
     ; retrieve registers' contents
     mov rax, [rbp - 8]
 
@@ -388,67 +412,60 @@ calculate:
     push rcx
     push rdx
 
-    fstcw word[oldcontrol]
-    mov ax, [oldcontrol]
-    mov [newcontrol], ax
-    mov ax, 11
-    btr word[newcontrol], ax
-    mov ax, 10
-    btr word[newcontrol], ax
-    clc
-    fldcw word[newcontrol]
+    calculate_loop:
+        cmp rdi, output
+        je end_calculate_loop
+        sub rsi, 8
+        fld qword[rsi]
+        fldz
+        fstp qword[rsi]
+        sub rsi, 8
+        fld qword[rsi]
+        fldz
+        fstp qword[rsi]
 
-    sub rsi, 8
-    fld qword[rsi]
-    fldz
-    fstp qword[rsi]
-    sub rsi, 8
-    fld qword[rsi]
-    fldz
-    fstp qword[rsi]
+        dec rdi
+        mov al, [rdi]
+        mov byte[rdi], 0
 
-    sub rdi, 8
-    mov al, [rdi]
-    mov byte[rdi], 0
+        cmp al, byte '+'
+        je do_addition
+        cmp al, byte '-'
+        je do_subtraction
+        cmp al, byte '*'
+        je do_multiplication
+        cmp al, byte '/'
+        je do_division
 
-    cmp al, byte '+'
-    je do_addition
-    cmp al, byte '-'
-    je do_subtraction
-    cmp al, byte '*'
-    je do_multiplication
-    cmp al, byte '/'
-    je do_division
+        do_addition:
+        fadd st1
+        jmp end_calculate
 
-    do_addition:
-    fadd st1
-    jmp end_calculate
+        do_subtraction:
+        fsub st1
+        jmp end_calculate
 
-    do_subtraction:
-    fsub st1
-    jmp end_calculate
+        do_multiplication:
+        fmul st1
+        jmp end_calculate
 
-    do_multiplication:
-    fmul st1
-    jmp end_calculate
+        do_division:
+        fdiv st1
+        fstsw ax
+        bt ax, 2
+        jnc end_calculate
+        call goto_nextline
+        mov rax, sys_write
+        mov rbx, stdout
+        mov rcx, divide_by_zero
+        mov rdx, div_len
+        int 80h
+        jmp exit
 
-    do_division:
-    fdiv st1
-    fstsw ax
-    bt ax, 2
-    jnc end_calculate
-    call goto_nextline
-    mov rax, sys_write
-    mov rbx, stdout
-    mov rcx, divide_by_zero
-    mov rdx, div_len
-    int 80h
-    jmp exit
-
-    end_calculate:
-    fstp qword[rsi]
-    add rsi, 8
-    fldcw word[oldcontrol]
+        end_calculate:
+        fstp qword[rsi]
+        add rsi, 8
+        end_calculate_loop:
 
     ; retrieve registers' contents
     pop rdx
@@ -466,6 +483,17 @@ print_result:
     push rcx
     push rdx
     push r8
+    push r9
+
+    fstcw word[oldcontrol]
+    mov ax, [oldcontrol]
+    mov [newcontrol], ax
+    mov ax, 11
+    btr word[newcontrol], ax
+    mov ax, 10
+    btr word[newcontrol], ax
+    clc
+    fldcw word[newcontrol]
 
     mov r8, output
     sub rsi, 8
@@ -480,10 +508,12 @@ print_result:
     fchs
 
     generate_output:
-    call extract_exp
-    fld qword[fexp]
-    fistp qword[fexp]
-    fld qword[ten]
+    ; call extract_exp
+    ; fld qword[fexp]
+    ; fistp qword[fexp]
+    mov al, [max_prec]
+    mov [fexp], al
+    fild qword[ten]
     fld qword[rsi]
     mov rcx, [fexp]
     ftoi_loop:
@@ -517,17 +547,36 @@ print_result:
         cmp rax, 0
         jne itoa_loop
 
+    fldcw word[oldcontrol]
+
+    mov r9, output
+    dec r8
+    mirror_while:
+        cmp r9, r8
+        jge end_mirror_while
+        mov bl, byte[r9]
+        mov dl, byte[r8]
+        mov [r9], dl
+        mov [r8], bl
+        inc r9
+        dec r8
+        jmp mirror_while
+    end_mirror_while:
+
+    mov [num_len], rcx
+
     call goto_nextline
 
-    mov rdx, rcx
     mov rax, sys_write
     mov rbx, stdout
     mov rcx, output
+    mov rdx, max_size
     int 80h
 
     clear_output:
-    mov rcx, rdx
+    mov rcx, [num_len]
     xor rdx, rdx
+    mov [num_len], rdx
     mov r8, output
     clear_output_loop:
         mov [r8], dl
@@ -535,6 +584,7 @@ print_result:
 
     add rsi, 8
     ; retrieve registers' contents
+    pop r9
     pop r8
     pop rdx
     pop rcx
@@ -545,6 +595,7 @@ print_result:
 ;..............................................................................
 
 extract_exp:
+    fld qword[rsi]
     fld st0
     fldlg2
     fxch st1            ; st2 = fvar, st1 = log_10(2), st0 = fvar
@@ -606,8 +657,8 @@ goto_nextline:
 
     mov rax, sys_write
     mov rbx, stdout
-    mov rcx, 10
-    mov rdx, 1
+    mov rcx, new_line
+    mov rdx, new_line_len
     int 80h
 
     ; retrieve registers' contents
