@@ -65,7 +65,7 @@ section .data
     ten dq 10
     oldcontrol dw 0
     newcontrol dw 0
-    fsig dq 0.0
+    fsig dw 0
     fexp dq 0.0
 
 ;******************************************************************************
@@ -103,8 +103,9 @@ evaluate_expression:
         call evaluate_char
         mov bx, erroccured
         clc
-        bt [calc_flag], bx
+        btr [calc_flag], bx
         jnc read_loop
+    reset:
     xor rax, rax
     xor rbx, rbx
     xor rdx, rdx
@@ -163,6 +164,10 @@ evaluate_char:
     mov al, byte 'q'
     cmp al, [inp]
     je exit
+
+    mov al, 32  ; space
+    cmp al, [inp]
+    je end_evaluate_char
 
     ;check end of line
     mov al, byte '='
@@ -340,9 +345,9 @@ evaluate_operator:
     check_prec:
     dec rdi
     clc
-    mov al, byte '-'
-    cmp [rdi], al
-    je first_minus
+    ; mov al, byte '-'
+    ; cmp [rdi], al
+    ; je first_minus
     continue:
     cmp rdi, op_stack
     je push_operator
@@ -358,23 +363,31 @@ evaluate_operator:
 
     push_operator:
     inc rdi
+    cmp rsi, num_stack
+    je first_neg
     mov al, [inp]
     mov [rdi], al
     mov al, [rdi]
     inc rdi
     jmp end_evaluate_operator
 
-    first_minus:
-    inc rdi
-    mov ax, numentered
-    bt [calc_flag], ax
-    jc continue
-    cmp rdi, op_stack
-    jne continue
+    first_neg:
     mov ax, isneg
     btc [calc_flag], ax
     clc
     jmp end_evaluate_operator
+
+    ; first_minus:
+    ; inc rdi
+    ; mov ax, numentered
+    ; bt [calc_flag], ax
+    ; jc continue
+    ; cmp rdi, op_stack
+    ; jne continue
+    ; mov ax, isneg
+    ; btc [calc_flag], ax
+    ; clc
+    ; jmp end_evaluate_operator
 
     operator_error:
     call invalid_exp_err
@@ -489,19 +502,21 @@ print_result:
     push rdx
     push r8
     push r9
-
-    fstcw word[oldcontrol]
-    mov ax, [oldcontrol]
-    mov [newcontrol], ax
-    mov ax, 11
-    btr word[newcontrol], ax
-    mov ax, 10
-    btr word[newcontrol], ax
-    clc
-    fldcw word[newcontrol]
+    push r10
 
     mov r8, output
     mov r9, output
+    fstcw word[oldcontrol]
+    mov ax, [oldcontrol]
+    or ax, 0x0c00
+    mov [newcontrol], ax
+    ; mov ax, 11
+    ; bts word[newcontrol], ax
+    ; mov ax, 10
+    ; bts word[newcontrol], ax
+    ; clc
+    fldcw word[newcontrol]
+
     sub rsi, 8
     fld qword[rsi]
     fxam
@@ -515,65 +530,156 @@ print_result:
     inc r8
     fchs
     inc r9
-
     generate_output:
-    ; call extract_exp
-    ; fld qword[fexp]
-    ; fistp qword[fexp]
-    clc
-    mov al, [max_prec]
-    mov [fexp], al
-    fild qword[ten]
-    fxch st1
-    mov rcx, [fexp]
-    ftoi_loop:
-        cmp rcx, 0
-        je end_ftoi_loop
-        fmul st1
-        dec rcx
-        jmp ftoi_loop
-        end_ftoi_loop:
-    fistp qword[fsig]
-    ffree st0
+    fld st0
+    frndint
+    fsub st1, st0
 
-    xor rcx, rcx
-    mov rax, qword[fsig]
+    fistp qword[fsig]
+    mov rax, [fsig]
+
     itoa_loop:
-        xor rbx, rbx
-        cmp [fexp], rbx
-        je convert_number
-        cmp rcx, [fexp]
-        jne convert_number
-        mov bl, byte '.'
-        mov [r8], bl
-        inc r8
-        inc rcx
-        convert_number:
         xor rdx, rdx
         div qword[ten]
         add dl, byte '0'
         mov [r8], dl
         inc r8
-        inc rcx
         cmp rax, 0
         jne itoa_loop
 
+    fabs
+    mov r10, r8
+    sub r10, r9
+    call mirror
+    fxam
+    fstsw ax
+    sahf
+    jz isinteger
+    mov bl, byte '.'
+    mov [r8], bl
+    inc r8
+    fild qword[ten]
+    fxch st1
+
+    mov rax, [r9]
+
+    xor rcx, rcx
+    ftoa_loop:
+        add r10, rcx
+        cmp r10, max_size
+        je end_ftoa_loop
+        fmul st1
+        inc rcx
+        cmp cl, [max_prec]
+        jne ftoa_continue
+        ; fstcw word[oldcontrol]
+        mov ax, [newcontrol]
+        mov ax, 11
+        btr word[newcontrol], ax
+        mov ax, 10
+        btr word[newcontrol], ax
+        clc
+        fldcw word[newcontrol]
+        frndint
+        ; fldcw word[oldcontrol]
+        ; jmp end_ftoa_loop
+        ftoa_continue:
+        fist word[fsig]
+        fisub word[fsig]
+        mov al, byte[fsig]
+        x:add al, byte '0'
+        cmp al, byte '9'
+        jg end_ftoa_loop
+        mov [r8], al
+        inc r8
+        ; inc rcx
+
+        fxam
+        fstsw ax
+        sahf
+        jnz ftoa_loop
+        end_ftoa_loop:
+        mov [max_prec], cl
     fldcw word[oldcontrol]
+    ffree st0
+    ffree st0
+    ffree st0
 
-    mirror_while:
-        cmp r9, r8
-        jge end_mirror_while
-        mov bl, byte[r9]
-        mov dl, byte[r8]
-        mov [r9], dl
-        mov [r8], bl
-        inc r9
-        dec r8
-        jmp mirror_while
-    end_mirror_while:
-
-    mov [num_len], rcx
-
+    ; mov r8, output
+    ; mov r9, output
+    ; sub rsi, 8
+    ; fld qword[rsi]
+    ; fxam
+    ; fstsw ax
+    ; clc
+    ; bt ax, 9
+    ; jnc generate_output
+    ; clc
+    ; mov al, byte '-'
+    ; mov [r8], al
+    ; inc r8
+    ; fchs
+    ; inc r9
+    ;
+    ; generate_output:
+    ; ; call extract_exp
+    ; ; fld qword[fexp]
+    ; ; fistp qword[fexp]
+    ; clc
+    ; mov al, [max_prec]
+    ; mov [fexp], al
+    ; prec_set:
+    ; fild qword[ten]
+    ; fxch st1
+    ; mov rcx, [fexp]
+    ; ftoi_loop:
+    ;     cmp rcx, 0
+    ;     je end_ftoi_loop
+    ;     fmul st1
+    ;     dec rcx
+    ;     jmp ftoi_loop
+    ;     end_ftoi_loop:
+    ; fistp qword[fsig]
+    ; ffree st0
+    ;
+    ; xor rcx, rcx
+    ; mov rax, qword[fsig]
+    ; itoa_loop:
+    ;     xor rbx, rbx
+    ;     cmp [fexp], rbx
+    ;     je convert_number
+    ;     cmp rcx, [fexp]
+    ;     jne convert_number
+    ;     mov bl, byte '.'
+    ;     mov [r8], bl
+    ;     inc r8
+    ;     inc rcx
+    ;     convert_number:
+    ;     xor rdx, rdx
+    ;     div qword[ten]
+    ;     add dl, byte '0'
+    ;     mov [r8], dl
+    ;     inc r8
+    ;     inc rcx
+    ;     cmp rax, 0
+    ;     jne itoa_loop
+    ;
+    ; fldcw word[oldcontrol]
+    ;
+    ; mirror_while:
+    ;     cmp r9, r8
+    ;     jge end_mirror_while
+    ;     mov bl, byte[r9]
+    ;     mov dl, byte[r8]
+    ;     mov [r9], dl
+    ;     mov [r8], bl
+    ;     inc r9
+    ;     dec r8
+    ;     jmp mirror_while
+    ; end_mirror_while:
+    ;
+    ; mov [num_len], rcx
+    isinteger:
     call goto_nextline
 
     mov rax, sys_write
@@ -594,12 +700,40 @@ print_result:
 
     add rsi, 8
     ; retrieve registers' contents
+    pop r10
     pop r9
     pop r8
     pop rdx
     pop rcx
     pop rbx
     pop rax
+    ret
+
+;..............................................................................
+
+mirror:
+    push r8
+    push r9
+    push rdx
+    push rbx
+
+    dec r8
+    mirror_while:
+        cmp r9, r8
+        jge end_mirror_while
+        mov bl, byte[r9]
+        mov dl, byte[r8]
+        mov [r9], dl
+        mov [r8], bl
+        inc r9
+        dec r8
+        jmp mirror_while
+    end_mirror_while:
+
+    pop rbx
+    pop rdx
+    pop r9
+    pop r8
     ret
 
 ;..............................................................................
