@@ -350,12 +350,13 @@ evaluate_operator:
     ; je first_minus
     continue:
     cmp rdi, op_stack
-    je push_operator
+    jl push_operator
     hiprec byte[inp], byte[rdi]
     mov ax, higherprec
     clc
     btr [calc_flag], ax
-    jc push_operator
+    mov al, [rdi]
+    y:jc push_operator
     clc
     inc rdi
     call calculate
