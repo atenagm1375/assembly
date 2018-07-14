@@ -560,52 +560,94 @@ print_result:
     mov [r8], bl
     inc r8
     fild qword[ten]
+    fld1
+    mov rcx, 8
+    precision_loop:
+        fmul st1
+        loop precision_loop
+    fxch st1
+    fstp st0
+    mov ax, [newcontrol]
+    and ax, 0xf3ff
+    mov [newcontrol], ax
+    fldcw word[newcontrol]
     fxch st1
 
-    mov rax, [r9]
-
-    xor rcx, rcx
+    fmul st1
+    frndint
+    ; z:mov ax, [newcontrol]
+    ; or ax, 0x0c00
+    ; mov [newcontrol], ax
+    ; fldcw word[newcontrol]
+    fistp qword[fexp]
+    ffree st0
+    ffree st0
+    ffree st0
+    ffree st0
+    mov r9, r8
+    mov rax, [fexp]
+    mov rcx, 8
     ftoa_loop:
-        add r10, rcx
-        cmp r10, max_size
-        je end_ftoa_loop
-        fmul st1
-        inc rcx
-        cmp cl, [max_prec]
-        jne ftoa_continue
-        ; fstcw word[oldcontrol]
-        mov ax, [newcontrol]
-        mov ax, 11
-        btr word[newcontrol], ax
-        mov ax, 10
-        btr word[newcontrol], ax
-        clc
-        fldcw word[newcontrol]
-        frndint
-        ; fldcw word[oldcontrol]
-        ; jmp end_ftoa_loop
-        ftoa_continue:
-        fist word[fsig]
-        fisub word[fsig]
-        mov al, byte[fsig]
-        x:add al, byte '0'
-        cmp al, byte '9'
-        jg end_ftoa_loop
-        mov [r8], al
+        xor rdx, rdx
+        div qword[ten]
+        add dl, byte '0'
+        mov [r8], dl
         inc r8
-        ; inc rcx
-
-        fxam
-        fstsw ax
-        sahf
-        jnz ftoa_loop
-        end_ftoa_loop:
-        mov [max_prec], cl
-    fldcw word[oldcontrol]
-    ffree st0
-    ffree st0
-    ffree st0
-
+        loop ftoa_loop
+    call mirror
+    remove_trailing_zeros:
+        dec r8
+        cmp byte[r8], byte '0'
+        jne end_remove_trailing_zeros
+        mov byte[r8], 0
+        jmp remove_trailing_zeros
+        end_remove_trailing_zeros:
+    ; fxch st1
+    ;
+    ; mov rax, [r9]
+    ;
+    ; xor rcx, rcx
+    ; ftoa_loop:
+    ;     add r10, rcx
+    ;     cmp r10, max_size
+    ;     je end_ftoa_loop
+    ;     fmul st1
+    ;     inc rcx
+    ;     cmp cl, [max_prec]
+    ;     jne ftoa_continue
+    ;     ; fstcw word[oldcontrol]
+    ;     mov ax, [newcontrol]
+    ;     mov ax, 11
+    ;     btr word[newcontrol], ax
+    ;     mov ax, 10
+    ;     btr word[newcontrol], ax
+    ;     clc
+    ;     fldcw word[newcontrol]
+    ;     frndint
+    ;     ; fldcw word[oldcontrol]
+    ;     ; jmp end_ftoa_loop
+    ;     ftoa_continue:
+    ;     fist word[fsig]
+    ;     fisub word[fsig]
+    ;     mov al, byte[fsig]
+    ;     x:add al, byte '0'
+    ;     cmp al, byte '9'
+    ;     jg end_ftoa_loop
+    ;     mov [r8], al
+    ;     inc r8
+    ;     ; inc rcx
+    ;
+    ;     fxam
+    ;     fstsw ax
+    ;     sahf
+    ;     jnz ftoa_loop
+    ;     end_ftoa_loop:
+    ;     mov [max_prec], cl
+    ; fldcw word[oldcontrol]
+    ; ffree st0
+    ; ffree st0
+    ; ffree st0
+;++++++++++++++++++++++++++++++++++++
     ; mov r8, output
     ; mov r9, output
     ; sub rsi, 8
